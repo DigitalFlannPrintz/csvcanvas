@@ -2207,9 +2207,8 @@ export default function Home() {
             )}
           </div>
 
-          {/* BOTTOM ACTIONS: PRESETS & HISTORY */}
-          <div className="flex flex-col gap-2 pt-2 border-t border-slate-800/80">
-            {/* Presets Row */}
+          {/* BOTTOM PRESETS */}
+          <div className="pt-2 border-t border-slate-800/80">
             <div className="grid grid-cols-2 gap-1.5">
               <button
                 type="button"
@@ -2226,60 +2225,6 @@ export default function Home() {
                 <span>📂</span> Load Preset
                 <input type="file" hidden accept=".json" onChange={handleLoadTemplatePreset} />
               </label>
-            </div>
-
-            {/* History & Delete Controls */}
-            <div className="flex items-center gap-1.5">
-              <div className="flex items-center flex-1 bg-slate-950 border border-slate-800 rounded-lg p-0.5">
-                <button
-                  type="button"
-                  onClick={handleUndo}
-                  disabled={!canUndo}
-                  className={`flex-1 py-1 text-[11px] font-semibold rounded transition flex items-center justify-center gap-1 ${
-                    canUndo ? 'text-slate-200 hover:bg-slate-800 cursor-pointer' : 'text-slate-600 opacity-40 cursor-not-allowed'
-                  }`}
-                  title="Undo (⌘Z)"
-                >
-                  <span>↩</span> Undo
-                </button>
-                <div className="h-3 w-px bg-slate-800" />
-                <button
-                  type="button"
-                  onClick={handleRedo}
-                  disabled={!canRedo}
-                  className={`flex-1 py-1 text-[11px] font-semibold rounded transition flex items-center justify-center gap-1 ${
-                    canRedo ? 'text-slate-200 hover:bg-slate-800 cursor-pointer' : 'text-slate-600 opacity-40 cursor-not-allowed'
-                  }`}
-                  title="Redo (⇧⌘Z)"
-                >
-                  Redo <span>↪</span>
-                </button>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleDeleteSelected}
-                disabled={!hasSelection}
-                className={`py-1 px-2 text-[11px] font-semibold rounded-lg border transition flex items-center gap-1 ${
-                  hasSelection
-                    ? 'bg-rose-950/60 text-rose-300 border-rose-800 hover:bg-rose-900/60 cursor-pointer'
-                    : 'bg-slate-950 text-slate-600 border-slate-800 opacity-40 cursor-not-allowed'
-                }`}
-                title="Delete element"
-              >
-                ✕
-              </button>
-
-              {pdfBytes && (
-                <button
-                  type="button"
-                  onClick={handleResetProject}
-                  className="py-1 px-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[11px] font-semibold rounded-lg transition cursor-pointer flex items-center gap-1"
-                  title="Reset canvas"
-                >
-                  Reset
-                </button>
-              )}
             </div>
           </div>
         </aside>
@@ -2451,6 +2396,60 @@ export default function Home() {
               className="ml-1 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400 border border-slate-800 rounded cursor-pointer hover:text-white"
             >
               {showGridOverlay ? 'Hide Dots' : 'Dots'}
+            </button>
+          )}
+        </div>
+
+        {/* Canvas Actions: Undo, Redo, Delete, Reset */}
+        <div className="flex items-center gap-1.5 ml-auto">
+          <div className="flex items-center rounded-xl bg-slate-950 border border-slate-800 p-0.5">
+            <button
+              type="button"
+              onClick={handleUndo}
+              disabled={!canUndo}
+              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition flex items-center gap-1 ${
+                canUndo ? 'text-slate-200 hover:bg-slate-800 hover:text-white cursor-pointer' : 'text-slate-600 opacity-40 cursor-not-allowed'
+              }`}
+              title="Undo (⌘Z)"
+            >
+              <span>↩</span> Undo
+            </button>
+            <div className="h-3.5 w-px bg-slate-800" />
+            <button
+              type="button"
+              onClick={handleRedo}
+              disabled={!canRedo}
+              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition flex items-center gap-1 ${
+                canRedo ? 'text-slate-200 hover:bg-slate-800 hover:text-white cursor-pointer' : 'text-slate-600 opacity-40 cursor-not-allowed'
+              }`}
+              title="Redo (⇧⌘Z)"
+            >
+              Redo <span>↪</span>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleDeleteSelected}
+            disabled={!hasSelection}
+            className={`px-2.5 py-1 text-xs font-semibold rounded-xl border transition flex items-center gap-1 ${
+              hasSelection
+                ? 'bg-rose-950/60 text-rose-300 border-rose-800/80 hover:bg-rose-900/60 cursor-pointer shadow-xs'
+                : 'bg-slate-950 text-slate-600 border-slate-800/50 opacity-40 cursor-not-allowed'
+            }`}
+            title="Delete selected item or guide"
+          >
+            ✕ Delete
+          </button>
+
+          {pdfBytes && (
+            <button
+              type="button"
+              onClick={handleResetProject}
+              className="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-semibold rounded-xl transition cursor-pointer flex items-center gap-1 active:scale-95 shadow-xs"
+              title="Reset PDF background and canvas elements"
+            >
+              Reset
             </button>
           )}
         </div>
@@ -2914,10 +2913,10 @@ export default function Home() {
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-semibold text-slate-400">Font Family:</span>
                   <label
-                    className="text-[10px] font-semibold text-cyan-400 hover:text-cyan-300 cursor-pointer"
+                    className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 border border-cyan-700/60 transition cursor-pointer shadow-xs hover:border-cyan-400 hover:text-white flex items-center gap-1 active:scale-95"
                     title="Upload custom .ttf or .otf file"
                   >
-                    + Custom Font
+                    <span className="text-cyan-400">+</span> Custom Font
                     <input type="file" hidden accept=".ttf,.otf" onChange={handleFontUpload} />
                   </label>
                 </div>
