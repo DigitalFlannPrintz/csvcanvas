@@ -115,7 +115,9 @@ export default function Home() {
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
   const [selectedTag, setSelectedTag] = useState<any>(null);
+  const [selectedBarcodeColor, setSelectedBarcodeColor] = useState<string>("#000000");
   const [selectedImage, setSelectedImage] = useState<any>(null);
+  const [selectedBarcode, setSelectedBarcode] = useState<any>(null);
   const [selectedImageMask, setSelectedImageMask] = useState<'circle' | 'rounded' | 'square' | 'none'>('none');
   const [hasSelection, setHasSelection] = useState<boolean>(false);
 
@@ -201,6 +203,7 @@ export default function Home() {
       'imageDataUrl',
       'originalRawDataUrl',
       'maskShape',
+        'barcodeColor',
     ]);
     data.pageIndex = currentPageIndexRef.current;
     if (obj.isStaticImage) {
@@ -247,9 +250,16 @@ export default function Home() {
   };
 
   const syncToolbarWithActiveObject = (obj: any) => {
+    if (obj && obj.isBarcode) {
+      setSelectedBarcode(obj);
+      setSelectedBarcodeColor(obj.barcodeColor || "#000000");
+    } else {
+      setSelectedBarcode(null);
+    }
     if (!obj) {
       setSelectedTag(null);
       setSelectedImage(null);
+      setSelectedBarcode(null);
       setSelectedImageMask('none');
       setHasSelection(false);
       setGuideBounds(null);
@@ -586,16 +596,18 @@ export default function Home() {
     tempImg.src = sourceDataUrl;
   };
 
-  const createBarcodeDataUrl = async (bcid: string, text: string): Promise<string> => {
+  const createBarcodeDataUrl = async (bcid: string, text: string, color: string = "#000000"): Promise<string> => {
     return new Promise((resolve) => {
-      const offscreen = document.createElement('canvas');
+      const offscreen = document.createElement("canvas");
       try {
+        const cleanHex = color.replace("#", "").trim() || "000000";
         const opts: Record<string, any> = {
           bcid,
-          text: String(text || 'SAMPLE'),
+          text: String(text || "SAMPLE"),
           scale: 3,
-          includetext: bcid !== 'qrcode',
-          textxalign: 'center',
+          includetext: bcid !== "qrcode",
+          textxalign: "center",
+          barcolor: cleanHex,
         };
         if (bcid !== 'qrcode') {
           opts.height = 10;
@@ -608,6 +620,29 @@ export default function Home() {
         resolve('');
       }
     });
+  };
+
+  
+  const handleBarcodeColorChange = async (newColor: string) => {
+    setSelectedBarcodeColor(newColor);
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+    const active = canvas.getActiveObject() as any;
+    if (!active || !active.isBarcode) return;
+
+    active.barcodeColor = newColor;
+
+    const val = isPreviewModeRef.current
+      ? (csvDataRef.current[previewRowIndexRef.current] || {})[active.barcodeField] || "SAMPLE"
+      : active.rawTemplateTag || active.barcodeField || "SAMPLE";
+
+    const newUrl = await createBarcodeDataUrl(active.barcodeType, String(val), newColor);
+    if (newUrl) {
+      active.setSrc(newUrl, () => {
+        canvas.renderAll();
+        saveState(canvas);
+      });
+    }
   };
 
   const addBarcodeToCanvas = async (headerName: string, barcodeType: 'qrcode' | 'code128') => {
@@ -637,6 +672,7 @@ export default function Home() {
         isBarcode: true,
         barcodeType,
         barcodeField: headerName,
+        barcodeColor: "#000000",
         rawTemplateTag: `{{${headerName}}}`,
         pageIndex: currentPageIndexRef.current,
       });
@@ -702,7 +738,7 @@ export default function Home() {
         ? (currentRow[bObj.barcodeField] !== undefined ? String(currentRow[bObj.barcodeField]) : bObj.barcodeField)
         : bObj.barcodeField;
 
-      const newUrl = await createBarcodeDataUrl(bObj.barcodeType, String(val));
+      const newUrl = await createBarcodeDataUrl(bObj.barcodeType, String(val), bObj.barcodeColor || "#000000");
       if (newUrl) {
         bObj.setSrc(newUrl, () => {
           canvas.renderAll();
@@ -1215,97 +1251,15 @@ export default function Home() {
           setCsvHeaders(fields);
           setSelectedBarcodeCol("Barcode");
 
-          // 3. Clear canvas & place initial tags
+          // 3. Clear canvas of previous non-background objects
           const toRemove = canvas.getObjects().filter((obj: any) => !obj.isBackground);
           toRemove.forEach((obj: any) => canvas.remove(obj));
-
-          const centerX = Math.round(Math.max(20, (canvas.width - 360) / 2));
-
-          // Add FullName
-          const nameBox = new fb.Textbox("{{FullName}}", {
-            left: centerX,
-            top: cfg.textY,
-            width: 360,
-            fontSize: 28,
-            fill: "#0f172a",
-            fontWeight: "bold",
-            textAlign: "center",
-            backgroundColor: "transparent",
-            pageIndex: 0,
-            rawTemplateTag: "{{FullName}}",
-            cornerColor: "#38bdf8",
-            cornerSize: 10,
-            transparentCorners: false,
-            hasControls: true,
-            selectable: true,
-          });
-          canvas.add(nameBox);
-
-          // Add Barcode (Code 128)
-          const firstRow = (results.data[0] || {}) as Record<string, any>;
-          const sampleBarcodeVal = firstRow["Barcode"] || "BC-90821";
-          const barcodeDataUrl = await createBarcodeDataUrl("code128", String(sampleBarcodeVal));
-          if (barcodeDataUrl) {
-            fb.Image.fromURL(barcodeDataUrl, (bImg: any) => {
-              const targetW = 200;
-              const scale = targetW / (bImg.width || 1);
-              bImg.set({
-                left: centerX + 80,
-                top: cfg.barcodeY,
-                scaleX: scale,
-                scaleY: scale,
-                cornerColor: "#38bdf8",
-                cornerSize: 10,
-                transparentCorners: false,
-                hasControls: true,
-                selectable: true,
-                isBarcode: true,
-                barcodeType: "code128",
-                barcodeField: "Barcode",
-                rawTemplateTag: "{{Barcode}}",
-                pageIndex: 0,
-              });
-              canvas.add(bImg);
-              canvas.renderAll();
-              saveState(canvas);
-            });
-          }
-
-          // Add QR Code
-          const sampleQrVal = firstRow["QR Code"] || "https://csvcanvas.app";
-          const qrDataUrl = await createBarcodeDataUrl("qrcode", String(sampleQrVal));
-          if (qrDataUrl) {
-            fb.Image.fromURL(qrDataUrl, (qrImg: any) => {
-              const targetW = 110;
-              const scale = targetW / (qrImg.width || 1);
-              qrImg.set({
-                left: centerX - 30,
-                top: cfg.qrY,
-                scaleX: scale,
-                scaleY: scale,
-                cornerColor: "#38bdf8",
-                cornerSize: 10,
-                transparentCorners: false,
-                hasControls: true,
-                selectable: true,
-                isBarcode: true,
-                barcodeType: "qrcode",
-                barcodeField: "QR Code",
-                rawTemplateTag: "{{QR Code}}",
-                pageIndex: 0,
-              });
-              canvas.add(qrImg);
-              canvas.renderAll();
-              saveState(canvas);
-            });
-          }
 
           canvas.renderAll();
           saveState(canvas);
 
-          setIsPreviewMode(true);
-          isPreviewModeRef.current = true;
-          applyDataPreview(true, 0);
+          setIsPreviewMode(false);
+          isPreviewModeRef.current = false;
         },
       });
     } catch (err) {
@@ -2455,6 +2409,38 @@ export default function Home() {
           </div>
         )}
 
+        
+        {/* Barcode & QR Code Toolbar (When Barcode/QR is selected) */}
+        {selectedBarcode && (
+          <div className="flex items-center gap-2.5 px-3 py-1 bg-slate-900 border border-slate-800 rounded-lg">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+              {selectedBarcode.barcodeType === "qrcode" ? "QR Code Color:" : "Barcode Color:"}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleBarcodeColorChange("#000000")}
+                className={"px-2.5 py-1 text-xs font-bold rounded-lg border transition cursor-pointer flex items-center gap-1.5 " +
+                  (selectedBarcodeColor.toLowerCase() === "#000000" || selectedBarcodeColor.toLowerCase() === "000000"
+                    ? "bg-cyan-500 text-slate-950 border-cyan-400 shadow-sm"
+                    : "bg-slate-950 hover:bg-slate-800 text-slate-300 border-slate-800")}
+              >
+                ⬛ Black
+              </button>
+              <button
+                type="button"
+                onClick={() => handleBarcodeColorChange("#ffffff")}
+                className={"px-2.5 py-1 text-xs font-bold rounded-lg border transition cursor-pointer flex items-center gap-1.5 " +
+                  (selectedBarcodeColor.toLowerCase() === "#ffffff" || selectedBarcodeColor.toLowerCase() === "ffffff"
+                    ? "bg-cyan-500 text-slate-950 border-cyan-400 shadow-sm"
+                    : "bg-slate-950 hover:bg-slate-800 text-slate-300 border-slate-800")}
+              >
+                ⬜ White
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Text Toolbar (When Text is selected) */}
         <div className={`flex flex-wrap items-center gap-2.5 ${selectedTag ? 'flex' : 'hidden'}`}>
           <div className="flex items-center gap-1 pr-2 border-r border-slate-800">
@@ -2531,7 +2517,35 @@ export default function Home() {
             className="w-12 px-1.5 py-1 text-xs border border-slate-800 rounded-lg bg-slate-950 text-slate-100 font-semibold"
           />
 
-          <input
+          
+          {/* Barcode / QR Code Color Toggle (Black or White) */}
+          {hasSelection && fabricCanvasRef.current?.getActiveObject()?.isBarcode && (
+            <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-900 border border-slate-800 rounded-lg">
+              <span className="text-[11px] text-slate-400 font-medium">Code Color:</span>
+              <button
+                type="button"
+                onClick={() => handleBarcodeColorChange("#000000")}
+                className={"px-2 py-0.5 text-xs font-semibold rounded border transition " + 
+                  (selectedBarcodeColor.toLowerCase() === "#000000" || selectedBarcodeColor.toLowerCase() === "000000"
+                    ? "bg-slate-950 text-white border-cyan-400"
+                    : "bg-slate-900 text-slate-400 border-slate-800 hover:text-white")}
+              >
+                ⬛ Black
+              </button>
+              <button
+                type="button"
+                onClick={() => handleBarcodeColorChange("#ffffff")}
+                className={"px-2 py-0.5 text-xs font-semibold rounded border transition " + 
+                  (selectedBarcodeColor.toLowerCase() === "#ffffff" || selectedBarcodeColor.toLowerCase() === "ffffff"
+                    ? "bg-slate-200 text-slate-950 border-cyan-400"
+                    : "bg-slate-900 text-slate-400 border-slate-800 hover:text-white")}
+              >
+                ⬜ White
+              </button>
+            </div>
+          )}
+
+<input
             type="color"
             value={textColor}
             onChange={(e) => handleColorChange(e.target.value)}

@@ -37,6 +37,7 @@ export interface CanvasBarcodeData {
   y: number;
   width: number;
   height: number;
+  barcodeColor?: string;
 }
 
 export interface CanvasStaticImageData {
@@ -83,9 +84,10 @@ const PDF_FONT_FALLBACK_MAP: Record<string, string> = {
 
 const barcodeBufferCache = new Map<string, Uint8Array>();
 
-async function generateBarcodePng(bcid: string, text: string): Promise<Uint8Array | null> {
+async function generateBarcodePng(bcid: string, text: string, color: string = "#000000"): Promise<Uint8Array | null> {
   if (!text) return null;
-  const cacheKey = `${bcid}_${text}`;
+  const cleanHex = color.replace("#", "").trim() || "000000";
+  const cacheKey = `${bcid}_${text}_${cleanHex}`;
   if (barcodeBufferCache.has(cacheKey)) {
     return barcodeBufferCache.get(cacheKey)!;
   }
@@ -95,8 +97,9 @@ async function generateBarcodePng(bcid: string, text: string): Promise<Uint8Arra
       bcid,
       text: String(text),
       scale: 3,
-      includetext: bcid !== 'qrcode',
-      textxalign: 'center',
+      includetext: bcid !== "qrcode",
+      textxalign: "center",
+      barcolor: cleanHex,
     };
     if (bcid !== 'qrcode') {
       opts.height = 10;
@@ -231,11 +234,18 @@ export async function generateVDP(
     ? targetPageIndices.filter((idx) => idx >= 0 && idx < totalTemplatePages)
     : Array.from({ length: totalTemplatePages }, (_, i) => i);
 
-  const templateDimensions: Record<number, { width: number; height: number; scaleFactor: number }> = {};
+  const templateDimensions: Record<
+    number,
+    { width: number; height: number; originX: number; originY: number; scaleFactor: number }
+  > = {};
   for (const i of activeTemplateIndices) {
     const page = pdfDoc.getPage(i);
-    const { width, height } = page.getSize();
-    templateDimensions[i] = { width, height, scaleFactor: width / canvasWidth };
+    const box = page.getCropBox() || page.getMediaBox() || { x: 0, y: 0, ...page.getSize() };
+    const width = box.width;
+    const height = box.height;
+    const originX = box.x || 0;
+    const originY = box.y || 0;
+    templateDimensions[i] = { width, height, originX, originY, scaleFactor: width / canvasWidth };
   }
 
   const finalPdf = await PDFDocument.create();
@@ -345,7 +355,7 @@ export async function generateVDP(
       finalPdf.addPage(page);
 
       const origPageIndex = activeTemplateIndices[loopIdx];
-      const { height: pdfHeight, scaleFactor } = templateDimensions[origPageIndex];
+      const { height: pdfHeight, originX, originY, scaleFactor } = templateDimensions[origPageIndex];
 
       // Draw Static Images
       const pageStaticImages = staticImagesByPage[origPageIndex] || [];
@@ -353,8 +363,8 @@ export async function generateVDP(
         const sImg = pageStaticImages[sIdx];
         const drawWidth = sImg.width * scaleFactor;
         const drawHeight = sImg.height * scaleFactor;
-        const drawX = sImg.x * scaleFactor;
-        const drawY = pdfHeight - (sImg.y * scaleFactor) - drawHeight;
+        const drawX = originX + (sImg.x * scaleFactor);
+        const drawY = originY + pdfHeight - (sImg.y * scaleFactor) - drawHeight;
 
         page.drawImage(sImg.embedded, {
           x: drawX,
@@ -395,7 +405,7 @@ export async function generateVDP(
         const effectiveFontSize = field.fontSize * scaleFactor;
         const boxWidth = (field.width || 0) * scaleFactor;
         const padOffset = (field.padding || 0) * scaleFactor;
-        const basePdfX = (field.x * scaleFactor) + padOffset;
+        const basePdfX = originX + (field.x * scaleFactor) + padOffset;
         const lineSpacingFactor = field.lineHeight || 1.16;
 
         const { r, g, b } = hexToRgbFraction(effectiveColor);
@@ -422,8 +432,8 @@ export async function generateVDP(
         lines.forEach((lineText, lineIndex) => {
           let lineX = basePdfX;
           // Calibrated baseline offset to match Fabric.js top bounding box
-          const fontCapHeight = effectiveFontSize * 0.78;
-          const lineY = pdfHeight - ((field.y * scaleFactor) + padOffset) - fontCapHeight - (lineIndex * singleLineHeight);
+          const fontBaselineOffset = effectiveFontSize * 0.70;
+          const lineY = originY + pdfHeight - ((field.y * scaleFactor) + padOffset) - fontBaselineOffset - (lineIndex * singleLineHeight);
 
           if (field.textAlign === "center") {
             const textWidth = selectedFont.widthOfTextAtSize(lineText, effectiveFontSize);
@@ -450,13 +460,13 @@ export async function generateVDP(
         const actualVal = row[bc.field] !== undefined ? String(row[bc.field]) : '';
         if (!actualVal) continue;
 
-        const pngData = await generateBarcodePng(bc.barcodeType, actualVal);
+        const pngData = await generateBarcodePng(bc.barcodeType, actualVal, bc.barcodeColor || "#000000");
         if (pngData) {
           const embeddedImg = await finalPdf.embedPng(pngData);
           const drawWidth = bc.width * scaleFactor;
           const drawHeight = bc.height * scaleFactor;
-          const drawX = bc.x * scaleFactor;
-          const drawY = pdfHeight - (bc.y * scaleFactor) - drawHeight;
+          const drawX = originX + (bc.x * scaleFactor);
+          const drawY = originY + pdfHeight - (bc.y * scaleFactor) - drawHeight;
 
           page.drawImage(embeddedImg, {
             x: drawX,
