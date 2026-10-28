@@ -2694,6 +2694,140 @@ export default function Home() {
       </div>
 
           </div>
+
+          {/* SLIDE-UP CSV DATA TABLE DRAWER */}
+          {isTableExpanded && csvData.length > 0 && (
+            <div className="absolute inset-x-0 bottom-0 z-20 max-h-[50vh] flex flex-col bg-slate-900/95 backdrop-blur-md border-t border-slate-800 shadow-2xl transition-all duration-200">
+              {/* Drawer Header Toolbar */}
+              <div className="shrink-0 px-4 py-2.5 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs">📊</span>
+                    <span className="text-xs font-bold text-slate-100">CSV Dataset Preview</span>
+                    <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800/60 rounded-full">
+                      {filteredIndexedRows.length} {filteredIndexedRows.length === 1 ? 'record' : 'records'}
+                    </span>
+                  </div>
+
+                  <span className="text-[11px] text-slate-400 font-medium hidden md:inline">
+                    (Click any row to bind canvas preview)
+                  </span>
+                </div>
+
+                {/* Search & Pagination Controls */}
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search records..."
+                      value={tableSearchQuery}
+                      onChange={(e) => handleSearchChange(e.target.value)}
+                      className="w-48 pl-7 pr-2.5 py-1 text-xs bg-slate-950 border border-slate-800 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                    />
+                    <span className="absolute left-2 top-1.5 text-xs text-slate-500">🔍</span>
+                  </div>
+
+                  {/* Pagination */}
+                  <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 rounded-lg p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setTableCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={tableCurrentPage <= 1}
+                      className="px-2 py-0.5 text-xs font-bold text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed hover:text-white"
+                    >
+                      ‹
+                    </button>
+                    <span className="text-[11px] font-semibold text-slate-400 px-1.5">
+                      {tableCurrentPage} / {totalTablePages}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setTableCurrentPage((p) => Math.min(totalTablePages, p + 1))}
+                      disabled={tableCurrentPage >= totalTablePages}
+                      className="px-2 py-0.5 text-xs font-bold text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed hover:text-white"
+                    >
+                      ›
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsTableExpanded(false)}
+                    className="p-1 px-2 text-xs font-bold text-slate-400 hover:text-white bg-slate-950 border border-slate-800 rounded-lg transition hover:bg-slate-800"
+                    title="Close table"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              {/* Scrollable Spreadsheet Table */}
+              <div className="flex-1 overflow-auto max-h-[calc(50vh-48px)]">
+                <table className="w-full border-collapse text-left text-xs">
+                  <thead className="sticky top-0 z-10 bg-slate-950 text-slate-400 font-bold border-b border-slate-800 select-none">
+                    <tr>
+                      <th className="py-2 px-3 border-r border-slate-800/80 w-12 text-center text-[10px] uppercase tracking-wider">
+                        #
+                      </th>
+                      {csvHeaders.map((header) => (
+                        <th
+                          key={header}
+                          className="py-2 px-3 border-r border-slate-800/80 whitespace-nowrap text-[11px] font-bold text-slate-300"
+                        >
+                          {header}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/50 font-mono text-[11px]">
+                    {currentTableRows.length > 0 ? (
+                      currentTableRows.map(({ row, originalIndex }) => {
+                        const isCurrent = isPreviewMode && previewRowIndex === originalIndex;
+                        return (
+                          <tr
+                            key={originalIndex}
+                            onClick={() => {
+                              setPreviewRowIndex(originalIndex);
+                              previewRowIndexRef.current = originalIndex;
+                              setIsPreviewMode(true);
+                              isPreviewModeRef.current = true;
+                              applyDataPreview(true, originalIndex);
+                            }}
+                            className={`cursor-pointer transition-colors ${
+                              isCurrent
+                                ? 'bg-cyan-950/60 text-cyan-200 font-semibold'
+                                : 'hover:bg-slate-800/50 text-slate-300'
+                            }`}
+                          >
+                            <td className="py-1.5 px-3 border-r border-slate-800/80 text-center font-bold text-slate-400 select-none">
+                              {originalIndex + 1}
+                            </td>
+                            {csvHeaders.map((header) => (
+                              <td
+                                key={header}
+                                className="py-1.5 px-3 border-r border-slate-800/80 whitespace-nowrap max-w-xs truncate"
+                              >
+                                {row[header] || ''}
+                              </td>
+                            ))}
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td
+                          colSpan={csvHeaders.length + 1}
+                          className="py-8 text-center text-slate-500 font-sans"
+                        >
+                          No matching records found for "{tableSearchQuery}".
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </main>
 
         {/* RIGHT INSPECTOR: Contextual Properties (w-80) */}
