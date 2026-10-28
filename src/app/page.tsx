@@ -158,6 +158,7 @@ export default function Home() {
   const [csvData, setCsvData] = useState<any[]>([]);
   const csvDataRef = useRef<any[]>([]);
   const [pdfBytes, setPdfBytes] = useState<ArrayBuffer | null>(null);
+  const [isDraggingPdf, setIsDraggingPdf] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isReady, setIsReady] = useState(false);
 
@@ -330,6 +331,28 @@ export default function Home() {
       setCanRedo(redoStackRef.current.length > 0);
       syncToolbarWithActiveObject(canvas.getActiveObject());
     });
+  };
+
+    const handleResetProject = () => {
+    const confirmed = window.confirm(
+      "Start over? This will remove the current template and all canvas elements. Your uploaded CSV data will remain loaded."
+    );
+    if (!confirmed) return;
+
+    const canvas = fabricCanvasRef.current;
+    if (canvas) {
+      canvas.clear();
+      canvas.backgroundColor = "#ffffff";
+      canvas.renderAll();
+    }
+
+    setPdfBytes(null);
+    pdfDocProxyRef.current = null;
+    setTotalPages(1);
+    setCurrentPageIndex(0);
+    currentPageIndexRef.current = 0;
+    pagesStorageRef.current = {};
+    setIsReady(false);
   };
 
   const handleDeleteSelected = () => {
@@ -601,9 +624,18 @@ export default function Home() {
       const offscreen = document.createElement("canvas");
       try {
         const cleanHex = color.replace("#", "").trim() || "000000";
+        let safeText = String(text ?? "").trim();
+        if (bcid === "code39") {
+          safeText = safeText.toUpperCase().replace(/[^0-9A-Z\-. $/+%]/g, "");
+          if (!safeText) safeText = "SAMPLE";
+        } else if (bcid === "code128") {
+          safeText = safeText.replace(/[^\x00-\x7F]/g, "");
+          if (!safeText) safeText = "SAMPLE";
+        }
+
         const opts: Record<string, any> = {
           bcid,
-          text: String(text || "SAMPLE"),
+          text: safeText || "SAMPLE",
           scale: 3,
           includetext: bcid !== "qrcode",
           textxalign: "center",
@@ -645,7 +677,28 @@ export default function Home() {
     }
   };
 
-  const addBarcodeToCanvas = async (headerName: string, barcodeType: 'qrcode' | 'code128') => {
+  const handleBarcodeTypeChange = async (newType: 'qrcode' | 'code128' | 'code39') => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+    const active = canvas.getActiveObject() as any;
+    if (!active || !active.isBarcode) return;
+
+    active.barcodeType = newType;
+    const val = isPreviewModeRef.current
+      ? (csvDataRef.current[previewRowIndexRef.current] || {})[active.barcodeField] || "SAMPLE"
+      : active.rawTemplateTag || active.barcodeField || "SAMPLE";
+
+    const newUrl = await createBarcodeDataUrl(newType, String(val), active.barcodeColor || "#000000");
+    if (newUrl) {
+      active.setSrc(newUrl, () => {
+        canvas.renderAll();
+        saveState(canvas);
+        setSelectedBarcode({ ...active });
+      });
+    }
+  };
+
+  const addBarcodeToCanvas = async (headerName: string, barcodeType: 'qrcode' | 'code128' | 'code39') => {
     const canvas = fabricCanvasRef.current;
     const fb = fabricModuleRef.current;
     if (!canvas || !fb) return;
@@ -1438,16 +1491,14 @@ export default function Home() {
     };
   }, []);
 
-  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const processPdfFile = async (file: File) => {
     const canvas = fabricCanvasRef.current;
     const fb = fabricModuleRef.current;
     const pdfjsLib = (window as any).pdfjsLib;
 
     if (!file || !canvas || !fb) return;
-
     if (!pdfjsLib) {
-      alert('PDF engine is initializing. Please try again in 2 seconds.');
+      alert("PDF engine is initializing. Please try again in 2 seconds.");
       return;
     }
 
@@ -1466,12 +1517,17 @@ export default function Home() {
       pagesStorageRef.current = {};
 
       await renderPdfBackgroundAtWidth(pdf, 1, canvasWidth);
-
-      alert(`Template loaded with ${pdf.numPages} page${pdf.numPages > 1 ? 's' : ''}!`);
+      setIsReady(true);
     } catch (err) {
-      console.error(err);
-      alert('Error rendering PDF preview.');
+      console.error("Error loading PDF:", err);
+      alert("Failed to read PDF file.");
     }
+  };
+
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) await processPdfFile(file);
+    e.target.value = "";
   };
 
   const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1490,7 +1546,6 @@ export default function Home() {
           if (results.meta.fields && results.meta.fields.length > 0) {
             setCsvHeaders(results.meta.fields);
             setSelectedBarcodeCol(results.meta.fields[0]);
-            addTagToCanvas(results.meta.fields[0]);
           }
         }
       });
@@ -1990,6 +2045,24 @@ export default function Home() {
         >
           <span>✕</span> Delete
         </button>
+
+        {pdfBytes && (
+          <>
+            <div className="h-4 w-px bg-slate-800 mx-1 hidden sm:block" />
+            <button
+              type="button"
+              onClick={handleResetProject}
+              className="px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-semibold rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1.5 hover:border-rose-500/50 active:scale-95"
+              title="Reset PDF background and canvas elements (keeps CSV data)"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+              </svg>
+              <span>Start Over</span>
+            </button>
+          </>
+        )}
       </div>
 
       {/* Expandable CSV Data Preview Accordion */}
@@ -2414,6 +2487,21 @@ export default function Home() {
         {selectedBarcode && (
           <div className="flex items-center gap-2.5 px-3 py-1 bg-slate-900 border border-slate-800 rounded-lg">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+              Format:
+            </span>
+            <select
+              value={selectedBarcode.barcodeType}
+              onChange={(e) => handleBarcodeTypeChange(e.target.value as 'qrcode' | 'code128' | 'code39')}
+              className="px-2 py-0.5 text-xs border border-slate-800 rounded-md bg-slate-950 text-slate-200 font-medium cursor-pointer"
+            >
+              <option value="code128">Code 128</option>
+              <option value="code39">Code 39</option>
+              <option value="qrcode">QR Code</option>
+            </select>
+
+            <div className="h-4 w-[1px] bg-slate-800 mx-1" />
+
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
               {selectedBarcode.barcodeType === "qrcode" ? "QR Code Color:" : "Barcode Color:"}
             </span>
             <div className="flex items-center gap-1.5">
@@ -2640,7 +2728,14 @@ export default function Home() {
               onClick={() => addBarcodeToCanvas(selectedBarcodeCol || csvHeaders[0], 'code128')}
               className="px-2.5 py-1 text-xs font-bold bg-indigo-950 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/80 rounded-md transition cursor-pointer flex items-center gap-1"
             >
-              <span>||||</span> + 1D Barcode
+              <span>||||</span> + Code 128
+            </button>
+            <button
+              type="button"
+              onClick={() => addBarcodeToCanvas(selectedBarcodeCol || csvHeaders[0], 'code39')}
+              className="px-2.5 py-1 text-xs font-bold bg-indigo-950 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/80 rounded-md transition cursor-pointer flex items-center gap-1"
+            >
+              <span>||||</span> + Code 39
             </button>
           </div>
         </div>
@@ -2661,6 +2756,55 @@ export default function Home() {
             border: '1px solid #1e293b',
           }}
         >
+          {/* Empty State: Compact Drag & Drop Card */}
+      {!pdfBytes && (
+        <div className="flex flex-col items-center justify-center py-16 px-4 w-full">
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setIsDraggingPdf(true);
+            }}
+            onDragLeave={() => setIsDraggingPdf(false)}
+            onDrop={async (e) => {
+              e.preventDefault();
+              setIsDraggingPdf(false);
+              const file = e.dataTransfer.files?.[0];
+              if (file && file.type === "application/pdf") {
+                await processPdfFile(file);
+              } else if (file) {
+                alert("Please drop a valid .pdf file.");
+              }
+            }}
+            className={"w-full max-w-md p-8 rounded-2xl border-2 border-dashed flex flex-col items-center text-center transition-all duration-200 backdrop-blur-md shadow-2xl select-none " +
+              (isDraggingPdf
+                ? "bg-cyan-950/70 border-cyan-400 text-cyan-200 scale-[1.02]"
+                : "bg-slate-900/60 border-slate-700/80 hover:border-cyan-500/50 hover:bg-slate-900/90 text-slate-300")}
+          >
+            <div className="w-14 h-14 mb-4 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-center text-2xl shadow-inner">
+              📄
+            </div>
+            <h3 className="text-base font-bold text-slate-100 mb-1">
+              Drag & drop your Background PDF
+            </h3>
+            <p className="text-xs text-slate-400 mb-6 max-w-xs leading-relaxed">
+              Upload your certificate, badge, or document template to start adding dynamic fields.
+            </p>
+
+            <label className="px-5 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-cyan-950/40 transition-all cursor-pointer flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]">
+              <span>Browse PDF File</span>
+              <input
+                type="file"
+                hidden
+                accept="application/pdf"
+                onChange={handlePdfUpload}
+              />
+            </label>
+          </div>
+        </div>
+      )}
+
+      {/* Canvas & Rulers Wrapper */}
+      <div style={{ display: pdfBytes ? "block" : "none" }}>
           {/* Top Row: Corner Box + Horizontal Ruler */}
           <div style={{ display: 'flex', alignItems: 'flex-end' }}>
             <div
@@ -2828,6 +2972,7 @@ export default function Home() {
             </div>
           </div>
         </div>
+      </div>
       </div>
 
       {/* Scope Export Modal */}
