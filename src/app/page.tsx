@@ -2049,342 +2049,239 @@ export default function Home() {
       <div className="flex flex-1 min-h-0 w-full overflow-hidden">
         
         {/* LEFT PANEL: Ingestion, CSV Chips & Elements (w-80) */}
-        <aside className="w-80 shrink-0 border-r border-slate-800/80 bg-slate-900/40 flex flex-col overflow-y-auto p-3.5 gap-4">
-          <div className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 px-1">
-            Data & Assets
-          </div>
-                {/* Sticky Floating Controls Dock */}
-      <div className="sticky top-[57px] z-20 w-full max-w-7xl flex flex-col items-center pt-2 pb-3 mb-2 bg-slate-950/80 backdrop-blur-md border-b border-slate-900/80 shadow-md">
-        {/* Main Studio Action Bar */}
-      <div className="flex flex-wrap gap-2.5 mb-4 justify-center items-center px-4">
-        <label className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-700/80 font-medium text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center gap-2 hover:border-cyan-500/50">
-          <span className="text-cyan-400">📄</span> 1. Background PDF
-          <input type="file" hidden accept="application/pdf" onChange={handlePdfUpload} />
-        </label>
-
-        <label className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-700/80 font-medium text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center gap-2 hover:border-emerald-500/50">
-          <span className="text-emerald-400">📊</span> 2. Data CSV
-          <input type="file" hidden accept=".csv" onChange={handleCsvUpload} />
-        </label>
-
-        <label
-          className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-700/80 font-medium text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center gap-2 hover:border-sky-500/50"
-          title="Upload static logo, signature, or badge image"
-        >
-          <span className="text-sky-400">🖼</span> + Logo / Image
-          <input type="file" hidden accept="image/*" onChange={handleStaticImageUpload} />
-        </label>
-
-        <button
-          type="button"
-          onClick={() => addFreeformText("Double-click to edit text...")}
-          className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-700/80 font-medium text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center gap-2 hover:border-cyan-500/50 active:scale-95"
-          title="Add editable custom text or mixed tag box"
-        >
-          <span className="text-cyan-400 font-bold text-sm">T</span> + Text
-        </button>
-
-        <div className="h-4 w-px bg-slate-800 mx-1 hidden sm:block" />
-
-        <button
-          type="button"
-          onClick={handleSaveTemplatePreset}
-          className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 font-medium text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5 hover:text-white"
-          title="Save layout and rules as a JSON preset"
-        >
-          <span>💾</span> Save Preset
-        </button>
-
-        <label
-          className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 font-medium text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5 hover:text-white"
-          title="Load a saved JSON preset"
-        >
-          <span>📂</span> Load Preset
-          <input type="file" hidden accept=".json" onChange={handleLoadTemplatePreset} />
-        </label>
-
-        <div className="h-4 w-px bg-slate-800 mx-1 hidden sm:block" />
-
-        <div className="flex items-center rounded-xl bg-slate-900 border border-slate-700/80 p-0.5 shadow-xs">
-          <button
-            type="button"
-            onClick={handleUndo}
-            disabled={!canUndo}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
-              canUndo
-                ? 'text-slate-100 hover:bg-slate-800 hover:text-white cursor-pointer active:scale-95'
-                : 'text-slate-600 cursor-not-allowed opacity-40'
-            }`}
-            title="Undo (⌘Z)"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 7v6h6" />
-              <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
-            </svg>
-            <span>Undo</span>
-          </button>
-
-          <div className="h-4 w-px bg-slate-800" />
-
-          <button
-            type="button"
-            onClick={handleRedo}
-            disabled={!canRedo}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
-              canRedo
-                ? 'text-slate-100 hover:bg-slate-800 hover:text-white cursor-pointer active:scale-95'
-                : 'text-slate-600 cursor-not-allowed opacity-40'
-            }`}
-            title="Redo (⇧⌘Z)"
-          >
-            <span>Redo</span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 7v6h-6" />
-              <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7" />
-            </svg>
-          </button>
-        </div>
-
-        <button
-          onClick={handleDeleteSelected}
-          disabled={!hasSelection}
-          className={`px-3 py-2 text-xs font-semibold rounded-xl border transition flex items-center gap-1 ${
-            hasSelection ? 'bg-rose-950/50 text-rose-300 border-rose-800 hover:bg-rose-900/50 cursor-pointer' : 'bg-slate-900/40 text-slate-600 border-slate-800/40 cursor-not-allowed'
-          }`}
-          title="Delete selected item or guide (Backspace / Del)"
-        >
-          <span>✕</span> Delete
-        </button>
-
-        {pdfBytes && (
-          <>
-            <div className="h-4 w-px bg-slate-800 mx-1 hidden sm:block" />
-            <button
-              type="button"
-              onClick={handleResetProject}
-              className="px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-semibold rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1.5 hover:border-rose-500/50 active:scale-95"
-              title="Reset PDF background and canvas elements (keeps CSV data)"
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                <path d="M3 3v5h5" />
-              </svg>
-              <span>Start Over</span>
-            </button>
-          </>
-        )}
-      </div>
-
-                {/* Dynamic Column Chips & Dynamic Barcodes */}
-      {csvHeaders.length > 0 && (
-        <div className="flex flex-col items-center mb-6 max-w-4xl text-center">
-          <div className="mb-3">
-            <p className="text-[11px] uppercase tracking-wider font-bold text-slate-400 mb-2">
-              Click a column to place on <span className="text-white">Page {currentPageIndex + 1}</span>:
-            </p>
-            <div className="flex flex-wrap gap-2 justify-center">
-              {csvHeaders.map((header) => (
-                <button
-                  key={header}
-                  onClick={() => addTagToCanvas(header)}
-                  className="px-3 py-1 text-xs bg-slate-900 hover:bg-slate-800 text-cyan-300 font-semibold border border-slate-800 hover:border-cyan-500/50 rounded-full shadow-xs transition cursor-pointer flex items-center gap-1.5"
-                >
-                  <span className="text-cyan-400 font-bold">+</span>
-                  {`{{${header}}}`}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-center gap-2 px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl shadow-xs">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Codes:</span>
-            <select
-              value={selectedBarcodeCol}
-              onChange={(e) => setSelectedBarcodeCol(e.target.value)}
-              className="px-2 py-0.5 text-xs border border-slate-800 rounded-md bg-slate-950 text-slate-200 font-medium"
-            >
-              {csvHeaders.map((h) => (
-                <option key={h} value={h}>{h}</option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={() => addBarcodeToCanvas(selectedBarcodeCol || csvHeaders[0], 'qrcode')}
-              className="px-2.5 py-1 text-xs font-bold bg-indigo-950 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/80 rounded-md transition cursor-pointer flex items-center gap-1"
-            >
-              <span>▦</span> + QR Code
-            </button>
-            <button
-              type="button"
-              onClick={() => addBarcodeToCanvas(selectedBarcodeCol || csvHeaders[0], 'code128')}
-              className="px-2.5 py-1 text-xs font-bold bg-indigo-950 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/80 rounded-md transition cursor-pointer flex items-center gap-1"
-            >
-              <span>||||</span> + Code 128
-            </button>
-            <button
-              type="button"
-              onClick={() => addBarcodeToCanvas(selectedBarcodeCol || csvHeaders[0], 'code39')}
-              className="px-2.5 py-1 text-xs font-bold bg-indigo-950 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/80 rounded-md transition cursor-pointer flex items-center gap-1"
-            >
-              <span>||||</span> + Code 39
-            </button>
-          </div>
-        </div>
-      )}
-
-      
-      </div>
-
-                {/* Expandable CSV Data Preview Accordion */}
-      {csvData.length > 0 && (
-        <div className="w-full max-w-5xl mb-4 bg-slate-900/90 border border-slate-800 rounded-2xl shadow-lg overflow-hidden transition-all">
-          <div
-            onClick={() => setIsTableExpanded(!isTableExpanded)}
-            className="px-4 py-2.5 bg-slate-900 hover:bg-slate-850 flex items-center justify-between cursor-pointer select-none transition border-b border-slate-800"
-          >
-            <div className="flex items-center gap-2.5">
-              <span className="text-xs font-bold text-slate-200">📊 CSV Dataset</span>
-              <span className="px-2 py-0.5 text-[11px] font-semibold bg-emerald-950 text-emerald-300 border border-emerald-800/60 rounded-full">
-                {csvData.length} records loaded
-              </span>
-              <span className="text-xs text-slate-400 font-medium hidden sm:inline">
-                (Click any row to bind canvas preview)
-              </span>
+        <aside className="w-80 shrink-0 border-r border-slate-800/80 bg-slate-900/40 flex flex-col justify-between overflow-y-auto p-3.5 gap-4">
+          <div className="flex flex-col gap-3.5">
+            <div className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 px-1">
+              Data & Assets
             </div>
 
-            <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-              <span>{isTableExpanded ? 'Hide Data' : 'View Data Table'}</span>
-              <span className={`transform transition-transform text-xs ${isTableExpanded ? 'rotate-180' : ''}`}>
-                ▼
-              </span>
-            </div>
-          </div>
-
-          {isTableExpanded && (
-            <div className="p-3 bg-slate-950/60">
-              <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-                <div className="relative flex-1 min-w-[220px]">
-                  <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-500 text-xs">
-                    🔍
-                  </span>
-                  <input
-                    type="text"
-                    value={tableSearchQuery}
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                    placeholder="Search across names, seats, or any field..."
-                    className="w-full pl-8 pr-8 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs font-medium text-slate-200 focus:outline-none focus:ring-1 focus:ring-cyan-500"
-                  />
-                  {tableSearchQuery && (
-                    <button
-                      type="button"
-                      onClick={() => handleSearchChange('')}
-                      className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-white text-xs font-bold cursor-pointer"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2 text-xs font-medium text-slate-400">
-                  {tableSearchQuery ? (
-                    <span className="px-2 py-0.5 bg-cyan-950 text-cyan-300 border border-cyan-800 rounded font-semibold">
-                      Found {filteredIndexedRows.length} match{filteredIndexedRows.length !== 1 ? 'es' : ''}
-                    </span>
+            {/* CARD 1: DOCUMENT & DATA SOURCES */}
+            <div className="p-3 bg-slate-900/80 border border-slate-800 rounded-xl flex flex-col gap-2.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">File Sources</span>
+              
+              <div className="flex flex-col gap-2">
+                <label className="w-full py-2 px-3 bg-slate-950 hover:bg-slate-850 text-slate-200 border border-slate-800 hover:border-cyan-500/50 font-semibold text-xs rounded-lg transition cursor-pointer flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-cyan-400">📄</span>
+                    <span>Background PDF</span>
+                  </div>
+                  {pdfBytes ? (
+                    <span className="text-[10px] bg-cyan-950 text-cyan-300 border border-cyan-800 px-1.5 py-0.5 rounded font-bold">Loaded</span>
                   ) : (
-                    <span>All {csvData.length} records visible</span>
+                    <span className="text-[10px] text-slate-500 font-medium">Browse...</span>
                   )}
+                  <input type="file" hidden accept="application/pdf" onChange={handlePdfUpload} />
+                </label>
+
+                <label className="w-full py-2 px-3 bg-slate-950 hover:bg-slate-850 text-slate-200 border border-slate-800 hover:border-emerald-500/50 font-semibold text-xs rounded-lg transition cursor-pointer flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-emerald-400">📊</span>
+                    <span>Data CSV</span>
+                  </div>
+                  {csvData.length > 0 ? (
+                    <span className="text-[10px] bg-emerald-950 text-emerald-300 border border-emerald-800 px-1.5 py-0.5 rounded font-bold">{csvData.length} rows</span>
+                  ) : (
+                    <span className="text-[10px] text-slate-500 font-medium">Browse...</span>
+                  )}
+                  <input type="file" hidden accept=".csv" onChange={handleCsvUpload} />
+                </label>
+              </div>
+            </div>
+
+            {/* CARD 2: INSERT STATIC ELEMENTS */}
+            <div className="p-3 bg-slate-900/80 border border-slate-800 rounded-xl flex flex-col gap-2.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Insert Elements</span>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => addFreeformText("Double-click to edit text...")}
+                  className="py-2 px-2.5 bg-slate-950 hover:bg-slate-800 text-slate-200 border border-slate-800 hover:border-cyan-500/50 font-semibold text-xs rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-95"
+                  title="Add editable text field"
+                >
+                  <span className="text-cyan-400 font-bold text-xs">T</span>
+                  <span>+ Text Box</span>
+                </button>
+
+                <label
+                  className="py-2 px-2.5 bg-slate-950 hover:bg-slate-800 text-slate-200 border border-slate-800 hover:border-sky-500/50 font-semibold text-xs rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-95"
+                  title="Upload static image"
+                >
+                  <span>🖼</span>
+                  <span>+ Image</span>
+                  <input type="file" hidden accept="image/*" onChange={handleStaticImageUpload} />
+                </label>
+              </div>
+            </div>
+
+            {/* CARD 3: DYNAMIC CSV FIELDS & BARCODES */}
+            {csvHeaders.length > 0 ? (
+              <div className="p-3 bg-slate-900/80 border border-slate-800 rounded-xl flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Dynamic Fields</span>
+                  <span className="text-[10px] text-cyan-400 font-semibold">Page {currentPageIndex + 1}</span>
                 </div>
-              </div>
 
-              <div className="overflow-x-auto border border-slate-800 rounded-lg max-h-60 overflow-y-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead className="bg-slate-900 text-slate-300 uppercase font-bold sticky top-0 border-b border-slate-800 z-10">
-                    <tr>
-                      <th className="p-2 border-r border-slate-800 w-14 text-center">Row</th>
-                      {csvHeaders.map((header) => (
-                        <th key={header} className="p-2 border-r border-slate-800 last:border-r-0 whitespace-nowrap">
-                          {header}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-850">
-                    {currentTableRows.length === 0 ? (
-                      <tr>
-                        <td colSpan={csvHeaders.length + 1} className="p-6 text-center text-slate-500 font-medium">
-                          No matching records found for "{tableSearchQuery}".
-                        </td>
-                      </tr>
-                    ) : (
-                      currentTableRows.map(({ row, originalIndex }) => {
-                        const isActive = isPreviewMode && previewRowIndex === originalIndex;
-
-                        return (
-                          <tr
-                            key={originalIndex}
-                            onClick={() => selectRecordDirectly(originalIndex)}
-                            className={`cursor-pointer transition-colors ${
-                              isActive
-                                ? 'bg-cyan-950/70 text-cyan-200 font-semibold ring-1 ring-cyan-500/80'
-                                : 'hover:bg-slate-900 text-slate-300'
-                            }`}
-                          >
-                            <td className="p-2 text-center font-mono border-r border-slate-800 whitespace-nowrap">
-                              {isActive ? (
-                                <span className="px-1.5 py-0.5 bg-cyan-500 text-slate-950 rounded-full text-[10px] font-bold">
-                                  ▶ #{originalIndex + 1}
-                                </span>
-                              ) : (
-                                `#${originalIndex + 1}`
-                              )}
-                            </td>
-                            {csvHeaders.map((h) => (
-                              <td key={h} className="p-2 border-r border-slate-800 last:border-r-0 max-w-[200px] truncate">
-                                {row[h] !== undefined ? String(row[h]) : ''}
-                              </td>
-                            ))}
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {totalTablePages > 1 && (
-                <div className="flex items-center justify-between pt-2.5 px-1 text-xs">
-                  <span className="text-slate-400 font-medium">
-                    Showing {tableStartIndex + 1}–{Math.min(tableStartIndex + ROWS_PER_TABLE_PAGE, filteredIndexedRows.length)} of {filteredIndexedRows.length} filtered records
-                  </span>
-
-                  <div className="flex items-center gap-1.5">
+                {/* Column Chips */}
+                <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
+                  {csvHeaders.map((header) => (
                     <button
+                      key={header}
                       type="button"
-                      onClick={() => setTableCurrentPage((p) => Math.max(1, p - 1))}
-                      disabled={tableCurrentPage === 1}
-                      className="px-2 py-1 bg-slate-900 border border-slate-800 rounded font-semibold text-slate-300 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                      onClick={() => addTagToCanvas(header)}
+                      className="px-2 py-1 text-[11px] bg-slate-950 hover:bg-slate-800 text-cyan-300 font-semibold border border-slate-800 hover:border-cyan-500/50 rounded-md transition cursor-pointer flex items-center gap-1"
+                      title={`Insert ${header} onto canvas`}
                     >
-                      ◀ Previous
+                      <span className="text-cyan-400 font-bold">+</span>
+                      <span>{"{{" + header + "}}"}</span>
                     </button>
-                    <span className="font-bold text-slate-300 px-1">
-                      Page {tableCurrentPage} of {totalTablePages}
-                    </span>
+                  ))}
+                </div>
+
+                {/* Barcode / QR Placement */}
+                <div className="pt-2 border-t border-slate-800 flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Generate Code:</span>
+                    <select
+                      value={selectedBarcodeCol}
+                      onChange={(e) => setSelectedBarcodeCol(e.target.value)}
+                      className="px-2 py-0.5 text-xs border border-slate-800 rounded bg-slate-950 text-slate-200 font-medium max-w-[130px] focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                    >
+                      {csvHeaders.map((h) => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-1.5">
                     <button
                       type="button"
-                      onClick={() => setTableCurrentPage((p) => Math.min(totalTablePages, p + 1))}
-                      disabled={tableCurrentPage >= totalTablePages}
-                      className="px-2 py-1 bg-slate-900 border border-slate-800 rounded font-semibold text-slate-300 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                      onClick={() => addBarcodeToCanvas(selectedBarcodeCol || csvHeaders[0], 'qrcode')}
+                      className="py-1 px-1.5 text-[11px] font-bold bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/80 rounded-md transition cursor-pointer text-center"
+                      title="Insert QR Code"
                     >
-                      Next ▶
+                      + QR
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => addBarcodeToCanvas(selectedBarcodeCol || csvHeaders[0], 'code128')}
+                      className="py-1 px-1.5 text-[11px] font-bold bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/80 rounded-md transition cursor-pointer text-center"
+                      title="Insert Code 128"
+                    >
+                      + Code 128
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => addBarcodeToCanvas(selectedBarcodeCol || csvHeaders[0], 'code39')}
+                      className="py-1 px-1.5 text-[11px] font-bold bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/80 rounded-md transition cursor-pointer text-center"
+                      title="Insert Code 39"
+                    >
+                      + Code 39
                     </button>
                   </div>
                 </div>
+              </div>
+            ) : (
+              <div className="p-3 bg-slate-900/40 border border-dashed border-slate-800 rounded-xl flex flex-col items-center justify-center text-center py-4">
+                <span className="text-[11px] font-semibold text-slate-400">No CSV Data Loaded</span>
+                <span className="text-[10px] text-slate-500 mt-0.5">Upload a CSV to place dynamic tags & barcodes.</span>
+              </div>
+            )}
+
+            {/* CARD 4: DATASET PREVIEW TRIGGER */}
+            {csvData.length > 0 && (
+              <div 
+                onClick={() => setIsTableExpanded(!isTableExpanded)}
+                className="p-2.5 bg-slate-900/80 hover:bg-slate-850 border border-slate-800 rounded-xl flex items-center justify-between cursor-pointer select-none transition"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-xs">📊</span>
+                  <span className="text-xs font-bold text-slate-300">View Data Table</span>
+                  <span className="px-1.5 py-0.2 text-[10px] font-semibold bg-emerald-950 text-emerald-300 border border-emerald-800/60 rounded">
+                    {csvData.length}
+                  </span>
+                </div>
+                <span className={`text-xs text-slate-400 transform transition-transform ${isTableExpanded ? 'rotate-180' : ''}`}>
+                  ▼
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* BOTTOM ACTIONS: PRESETS & HISTORY */}
+          <div className="flex flex-col gap-2 pt-2 border-t border-slate-800/80">
+            {/* Presets Row */}
+            <div className="grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                onClick={handleSaveTemplatePreset}
+                className="py-1 px-2 bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800 text-[11px] font-medium rounded-lg transition cursor-pointer flex items-center justify-center gap-1 hover:text-white"
+                title="Save template layout"
+              >
+                <span>💾</span> Save Preset
+              </button>
+              <label
+                className="py-1 px-2 bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800 text-[11px] font-medium rounded-lg transition cursor-pointer flex items-center justify-center gap-1 hover:text-white"
+                title="Load template layout"
+              >
+                <span>📂</span> Load Preset
+                <input type="file" hidden accept=".json" onChange={handleLoadTemplatePreset} />
+              </label>
+            </div>
+
+            {/* History & Delete Controls */}
+            <div className="flex items-center gap-1.5">
+              <div className="flex items-center flex-1 bg-slate-950 border border-slate-800 rounded-lg p-0.5">
+                <button
+                  type="button"
+                  onClick={handleUndo}
+                  disabled={!canUndo}
+                  className={`flex-1 py-1 text-[11px] font-semibold rounded transition flex items-center justify-center gap-1 ${
+                    canUndo ? 'text-slate-200 hover:bg-slate-800 cursor-pointer' : 'text-slate-600 opacity-40 cursor-not-allowed'
+                  }`}
+                  title="Undo (⌘Z)"
+                >
+                  <span>↩</span> Undo
+                </button>
+                <div className="h-3 w-px bg-slate-800" />
+                <button
+                  type="button"
+                  onClick={handleRedo}
+                  disabled={!canRedo}
+                  className={`flex-1 py-1 text-[11px] font-semibold rounded transition flex items-center justify-center gap-1 ${
+                    canRedo ? 'text-slate-200 hover:bg-slate-800 cursor-pointer' : 'text-slate-600 opacity-40 cursor-not-allowed'
+                  }`}
+                  title="Redo (⇧⌘Z)"
+                >
+                  Redo <span>↪</span>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleDeleteSelected}
+                disabled={!hasSelection}
+                className={`py-1 px-2 text-[11px] font-semibold rounded-lg border transition flex items-center gap-1 ${
+                  hasSelection
+                    ? 'bg-rose-950/60 text-rose-300 border-rose-800 hover:bg-rose-900/60 cursor-pointer'
+                    : 'bg-slate-950 text-slate-600 border-slate-800 opacity-40 cursor-not-allowed'
+                }`}
+                title="Delete element"
+              >
+                ✕
+              </button>
+
+              {pdfBytes && (
+                <button
+                  type="button"
+                  onClick={handleResetProject}
+                  className="py-1 px-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[11px] font-semibold rounded-lg transition cursor-pointer flex items-center gap-1"
+                  title="Reset canvas"
+                >
+                  Reset
+                </button>
               )}
             </div>
-          )}
-        </div>
-      )}
-
+          </div>
         </aside>
 
         {/* CENTER STAGE: Canvas Viewport */}
