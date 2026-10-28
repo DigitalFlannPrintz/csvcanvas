@@ -120,6 +120,12 @@ export default function Home() {
   const [selectedBarcode, setSelectedBarcode] = useState<any>(null);
   const [selectedImageMask, setSelectedImageMask] = useState<'circle' | 'rounded' | 'square' | 'none'>('none');
   const [hasSelection, setHasSelection] = useState<boolean>(false);
+  const [transformX, setTransformX] = useState<number>(0);
+  const [transformY, setTransformY] = useState<number>(0);
+  const [transformW, setTransformW] = useState<number>(0);
+  const [transformH, setTransformH] = useState<number>(0);
+  const [transformAngle, setTransformAngle] = useState<number>(0);
+  const [isRatioLocked, setIsRatioLocked] = useState<boolean>(false);
 
   const [canvasWidth, setCanvasWidth] = useState<number>(850);
   const [canvasHeight, setCanvasHeight] = useState<number>(1100);
@@ -250,7 +256,89 @@ export default function Home() {
     setCanRedo(false);
   };
 
+  const syncTransformValues = (obj: any) => {
+    if (!obj) {
+      setTransformX(0);
+      setTransformY(0);
+      setTransformW(0);
+      setTransformH(0);
+      setTransformAngle(0);
+      return;
+    }
+    setTransformX(Math.round(obj.left || 0));
+    setTransformY(Math.round(obj.top || 0));
+    setTransformW(Math.round(obj.getScaledWidth ? obj.getScaledWidth() : (obj.width || 0) * (obj.scaleX || 1)));
+    setTransformH(Math.round(obj.getScaledHeight ? obj.getScaledHeight() : (obj.height || 0) * (obj.scaleY || 1)));
+    setTransformAngle(Math.round(obj.angle || 0) % 360);
+  };
+
+  const handleTransformChange = (
+    field: 'x' | 'y' | 'w' | 'h' | 'angle',
+    val: number
+  ) => {
+    const canvas = fabricCanvasRef.current;
+    const obj = canvas?.getActiveObject();
+    if (!canvas || !obj) return;
+
+    if (field === 'x') {
+      obj.set({ left: val });
+      setTransformX(val);
+    } else if (field === 'y') {
+      obj.set({ top: val });
+      setTransformY(val);
+    } else if (field === 'angle') {
+      const normalized = ((val % 360) + 360) % 360;
+      obj.set({ angle: normalized });
+      setTransformAngle(normalized);
+    } else if (field === 'w') {
+      const targetW = Math.max(5, val);
+      const currentW = obj.getScaledWidth ? obj.getScaledWidth() : (obj.width || 1) * (obj.scaleX || 1);
+      const currentH = obj.getScaledHeight ? obj.getScaledHeight() : (obj.height || 1) * (obj.scaleY || 1);
+      const ratio = currentH / (currentW || 1);
+
+      if (obj.type === 'textbox') {
+        obj.set({ width: targetW / (obj.scaleX || 1) });
+      } else {
+        const baseWidth = obj.width || 1;
+        obj.set({ scaleX: targetW / baseWidth });
+      }
+      setTransformW(Math.round(targetW));
+
+      if (isRatioLocked) {
+        const targetH = Math.round(targetW * ratio);
+        const baseHeight = obj.height || 1;
+        obj.set({ scaleY: targetH / baseHeight });
+        setTransformH(targetH);
+      }
+    } else if (field === 'h') {
+      const targetH = Math.max(5, val);
+      const currentW = obj.getScaledWidth ? obj.getScaledWidth() : (obj.width || 1) * (obj.scaleX || 1);
+      const currentH = obj.getScaledHeight ? obj.getScaledHeight() : (obj.height || 1) * (obj.scaleY || 1);
+      const ratio = currentW / (currentH || 1);
+
+      const baseHeight = obj.height || 1;
+      obj.set({ scaleY: targetH / baseHeight });
+      setTransformH(Math.round(targetH));
+
+      if (isRatioLocked) {
+        const targetW = Math.round(targetH * ratio);
+        if (obj.type === 'textbox') {
+          obj.set({ width: targetW / (obj.scaleX || 1) });
+        } else {
+          const baseWidth = obj.width || 1;
+          obj.set({ scaleX: targetW / baseWidth });
+        }
+        setTransformW(targetW);
+      }
+    }
+
+    obj.setCoords();
+    canvas.renderAll();
+    saveState(canvas);
+  };
+
   const syncToolbarWithActiveObject = (obj: any) => {
+    syncTransformValues(obj);
     if (obj && obj.isBarcode) {
       setSelectedBarcode(obj);
       setSelectedBarcodeColor(obj.barcodeColor || "#000000");
@@ -1399,7 +1487,17 @@ export default function Home() {
         };
 
         c.on('object:modified', record);
-        c.on('object:moving', handleObjectMoving);
+        c.on('object:moving', (e: any) => {
+          handleObjectMoving(e);
+          syncTransformValues(c.getActiveObject());
+        });
+        c.on('object:scaling', () => {
+          updateSelectionBounds();
+          syncTransformValues(c.getActiveObject());
+        });
+        c.on('object:rotating', () => {
+          syncTransformValues(c.getActiveObject());
+        });
         c.on('object:scaling', updateSelectionBounds);
         c.on('object:added', record);
         c.on('object:removed', record);
@@ -1849,8 +1947,10 @@ export default function Home() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center bg-slate-950 text-slate-100 pb-20 selection:bg-cyan-500 selection:text-white">
-      {/* Sleek Top Navigation Bar with Starter Templates Dropdown */}
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-950 text-slate-100 selection:bg-cyan-500 selection:text-white">
+      {/* 1. TOP GLOBAL APP HEADER */}
+      <div className="shrink-0 z-30">
+              {/* Sleek Top Navigation Bar with Starter Templates Dropdown */}
       <header className="w-full border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-30 px-6 py-3 flex items-center justify-between shadow-xs mb-6">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center shadow-md shadow-cyan-500/20">
@@ -1943,7 +2043,17 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Sticky Floating Controls Dock */}
+      </div>
+
+      {/* 2. THREE-PANE MAIN WORKBENCH */}
+      <div className="flex flex-1 min-h-0 w-full overflow-hidden">
+        
+        {/* LEFT PANEL: Ingestion, CSV Chips & Elements (w-80) */}
+        <aside className="w-80 shrink-0 border-r border-slate-800/80 bg-slate-900/40 flex flex-col overflow-y-auto p-3.5 gap-4">
+          <div className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 px-1">
+            Data & Assets
+          </div>
+                {/* Sticky Floating Controls Dock */}
       <div className="sticky top-[57px] z-20 w-full max-w-7xl flex flex-col items-center pt-2 pb-3 mb-2 bg-slate-950/80 backdrop-blur-md border-b border-slate-900/80 shadow-md">
         {/* Main Studio Action Bar */}
       <div className="flex flex-wrap gap-2.5 mb-4 justify-center items-center px-4">
@@ -2065,7 +2175,67 @@ export default function Home() {
         )}
       </div>
 
-      {/* Expandable CSV Data Preview Accordion */}
+                {/* Dynamic Column Chips & Dynamic Barcodes */}
+      {csvHeaders.length > 0 && (
+        <div className="flex flex-col items-center mb-6 max-w-4xl text-center">
+          <div className="mb-3">
+            <p className="text-[11px] uppercase tracking-wider font-bold text-slate-400 mb-2">
+              Click a column to place on <span className="text-white">Page {currentPageIndex + 1}</span>:
+            </p>
+            <div className="flex flex-wrap gap-2 justify-center">
+              {csvHeaders.map((header) => (
+                <button
+                  key={header}
+                  onClick={() => addTagToCanvas(header)}
+                  className="px-3 py-1 text-xs bg-slate-900 hover:bg-slate-800 text-cyan-300 font-semibold border border-slate-800 hover:border-cyan-500/50 rounded-full shadow-xs transition cursor-pointer flex items-center gap-1.5"
+                >
+                  <span className="text-cyan-400 font-bold">+</span>
+                  {`{{${header}}}`}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-2 px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl shadow-xs">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Codes:</span>
+            <select
+              value={selectedBarcodeCol}
+              onChange={(e) => setSelectedBarcodeCol(e.target.value)}
+              className="px-2 py-0.5 text-xs border border-slate-800 rounded-md bg-slate-950 text-slate-200 font-medium"
+            >
+              {csvHeaders.map((h) => (
+                <option key={h} value={h}>{h}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => addBarcodeToCanvas(selectedBarcodeCol || csvHeaders[0], 'qrcode')}
+              className="px-2.5 py-1 text-xs font-bold bg-indigo-950 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/80 rounded-md transition cursor-pointer flex items-center gap-1"
+            >
+              <span>▦</span> + QR Code
+            </button>
+            <button
+              type="button"
+              onClick={() => addBarcodeToCanvas(selectedBarcodeCol || csvHeaders[0], 'code128')}
+              className="px-2.5 py-1 text-xs font-bold bg-indigo-950 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/80 rounded-md transition cursor-pointer flex items-center gap-1"
+            >
+              <span>||||</span> + Code 128
+            </button>
+            <button
+              type="button"
+              onClick={() => addBarcodeToCanvas(selectedBarcodeCol || csvHeaders[0], 'code39')}
+              className="px-2.5 py-1 text-xs font-bold bg-indigo-950 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/80 rounded-md transition cursor-pointer flex items-center gap-1"
+            >
+              <span>||||</span> + Code 39
+            </button>
+          </div>
+        </div>
+      )}
+
+      
+      </div>
+
+                {/* Expandable CSV Data Preview Accordion */}
       {csvData.length > 0 && (
         <div className="w-full max-w-5xl mb-4 bg-slate-900/90 border border-slate-800 rounded-2xl shadow-lg overflow-hidden transition-all">
           <div
@@ -2215,7 +2385,13 @@ export default function Home() {
         </div>
       )}
 
-      {/* Row 1 Floating Studio Shelf: Pages, Live Data, Zoom, Guides & Grid */}
+        </aside>
+
+        {/* CENTER STAGE: Canvas Viewport */}
+        <main className="flex-1 flex flex-col min-w-0 bg-slate-950 overflow-hidden relative">
+          {/* Top Control Bar: Zoom, Snap, Guides */}
+          <div className="shrink-0 border-b border-slate-800/80 bg-slate-900/30 px-3 py-1.5 flex items-center justify-between z-10">
+                  {/* Row 1 Floating Studio Shelf: Pages, Live Data, Zoom, Guides & Grid */}
       <div className="flex flex-wrap items-center justify-center gap-2 mb-3 bg-slate-900/90 border border-slate-800 px-3 py-2 rounded-2xl shadow-lg">
         {totalPages > 1 && (
           <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-950 border border-slate-800 rounded-xl">
@@ -2383,368 +2559,14 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Row 2 Floating Studio Toolbar: Alignment, Typography, and Image Mask */}
-      <div className={`flex flex-wrap items-center justify-center gap-3 px-4 py-2 mb-4 bg-slate-900/90 border border-slate-800 rounded-2xl shadow-xl transition-all ${hasSelection ? 'opacity-100 ring-2 ring-cyan-500/50' : 'opacity-30 pointer-events-none'}`}>
-        <div className="flex items-center gap-1.5 pr-2 border-r border-slate-800">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Page Align:</span>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => alignSelectedToArtboard('left')}
-              className="px-2 py-1 text-xs font-medium bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800 rounded cursor-pointer"
-            >
-              ⇤ Left
-            </button>
-            <button
-              type="button"
-              onClick={() => alignSelectedToArtboard('centerH')}
-              className="px-2 py-1 text-xs font-bold bg-slate-800 text-cyan-300 border border-cyan-800/60 rounded cursor-pointer hover:bg-slate-700"
-            >
-              ⇥ CenterH ⇤
-            </button>
-            <button
-              type="button"
-              onClick={() => alignSelectedToArtboard('right')}
-              className="px-2 py-1 text-xs font-medium bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800 rounded cursor-pointer"
-            >
-              Right ⇥
-            </button>
-            <button
-              type="button"
-              onClick={() => alignSelectedToArtboard('top')}
-              className="px-2 py-1 text-xs font-medium bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800 rounded cursor-pointer"
-            >
-              ⤊ Top
-            </button>
-            <button
-              type="button"
-              onClick={() => alignSelectedToArtboard('centerV')}
-              className="px-2 py-1 text-xs font-bold bg-slate-800 text-cyan-300 border border-cyan-800/60 rounded cursor-pointer hover:bg-slate-700"
-            >
-              CenterV
-            </button>
-            <button
-              type="button"
-              onClick={() => alignSelectedToArtboard('bottom')}
-              className="px-2 py-1 text-xs font-medium bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800 rounded cursor-pointer"
-            >
-              ⤋ Bottom
-            </button>
-          </div>
-        </div>
-
-        {/* Mask/Crop Toolbar (When an Image is selected) */}
-        {selectedImage && (
-          <div className="flex items-center gap-2 pl-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Mask:</span>
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => applyImageMask('circle')}
-                className={`px-3 py-1 text-xs font-bold rounded-lg border transition cursor-pointer flex items-center gap-1.5 ${
-                  selectedImageMask === 'circle'
-                    ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-sm font-black'
-                    : 'bg-slate-950 hover:bg-slate-800 text-slate-300 border-slate-800'
-                }`}
-              >
-                <span>◯</span> Circle
-              </button>
-              <button
-                type="button"
-                onClick={() => applyImageMask('rounded')}
-                className={`px-3 py-1 text-xs font-bold rounded-lg border transition cursor-pointer flex items-center gap-1.5 ${
-                  selectedImageMask === 'rounded'
-                    ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-sm font-black'
-                    : 'bg-slate-950 hover:bg-slate-800 text-slate-300 border-slate-800'
-                }`}
-              >
-                <span>▢</span> Rounded
-              </button>
-              <button
-                type="button"
-                onClick={() => applyImageMask('square')}
-                className={`px-3 py-1 text-xs font-bold rounded-lg border transition cursor-pointer flex items-center gap-1.5 ${
-                  selectedImageMask === 'square'
-                    ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-sm font-black'
-                    : 'bg-slate-950 hover:bg-slate-800 text-slate-300 border-slate-800'
-                }`}
-              >
-                <span>□</span> 1:1 Square
-              </button>
-              <button
-                type="button"
-                onClick={() => applyImageMask('none')}
-                className="px-2.5 py-1 text-xs font-medium text-slate-400 hover:text-rose-400 cursor-pointer"
-              >
-                Reset Crop
-              </button>
-            </div>
-          </div>
-        )}
-
-        
-        {/* Barcode & QR Code Toolbar (When Barcode/QR is selected) */}
-        {selectedBarcode && (
-          <div className="flex items-center gap-2.5 px-3 py-1 bg-slate-900 border border-slate-800 rounded-lg">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-              Format:
-            </span>
-            <select
-              value={selectedBarcode.barcodeType}
-              onChange={(e) => handleBarcodeTypeChange(e.target.value as 'qrcode' | 'code128' | 'code39')}
-              className="px-2 py-0.5 text-xs border border-slate-800 rounded-md bg-slate-950 text-slate-200 font-medium cursor-pointer"
-            >
-              <option value="code128">Code 128</option>
-              <option value="code39">Code 39</option>
-              <option value="qrcode">QR Code</option>
-            </select>
-
-            <div className="h-4 w-[1px] bg-slate-800 mx-1" />
-
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-              {selectedBarcode.barcodeType === "qrcode" ? "QR Code Color:" : "Barcode Color:"}
-            </span>
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => handleBarcodeColorChange("#000000")}
-                className={"px-2.5 py-1 text-xs font-bold rounded-lg border transition cursor-pointer flex items-center gap-1.5 " +
-                  (selectedBarcodeColor.toLowerCase() === "#000000" || selectedBarcodeColor.toLowerCase() === "000000"
-                    ? "bg-cyan-500 text-slate-950 border-cyan-400 shadow-sm"
-                    : "bg-slate-950 hover:bg-slate-800 text-slate-300 border-slate-800")}
-              >
-                ⬛ Black
-              </button>
-              <button
-                type="button"
-                onClick={() => handleBarcodeColorChange("#ffffff")}
-                className={"px-2.5 py-1 text-xs font-bold rounded-lg border transition cursor-pointer flex items-center gap-1.5 " +
-                  (selectedBarcodeColor.toLowerCase() === "#ffffff" || selectedBarcodeColor.toLowerCase() === "ffffff"
-                    ? "bg-cyan-500 text-slate-950 border-cyan-400 shadow-sm"
-                    : "bg-slate-950 hover:bg-slate-800 text-slate-300 border-slate-800")}
-              >
-                ⬜ White
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Text Toolbar (When Text is selected) */}
-        <div className={`flex flex-wrap items-center gap-2.5 ${selectedTag ? 'flex' : 'hidden'}`}>
-          <div className="flex items-center gap-1 pr-2 border-r border-slate-800">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Text:</span>
-            <div className="flex items-center border border-slate-800 rounded-lg overflow-hidden bg-slate-950">
-              <button
-                type="button"
-                onClick={() => handleAlignChange('left')}
-                className={`px-2 py-0.5 text-xs font-semibold ${
-                  textAlign === 'left' ? 'bg-cyan-500 text-slate-950' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                L
-              </button>
-              <button
-                type="button"
-                onClick={() => handleAlignChange('center')}
-                className={`px-2 py-0.5 text-xs font-semibold border-x border-slate-800 ${
-                  textAlign === 'center' ? 'bg-cyan-500 text-slate-950' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                C
-              </button>
-              <button
-                type="button"
-                onClick={() => handleAlignChange('right')}
-                className={`px-2 py-0.5 text-xs font-semibold ${
-                  textAlign === 'right' ? 'bg-cyan-500 text-slate-950' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                R
-              </button>
-            </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
-            <select
-              value={fontFamily}
-              onChange={(e) => handleFontFamilyChange(e.target.value)}
-              disabled={loadingFont}
-              className="px-2 py-1 text-xs border border-slate-800 rounded-lg bg-slate-950 text-slate-200 focus:outline-none focus:ring-1 focus:ring-cyan-500 max-w-[150px]"
-            >
-              {customFontsList.length > 0 && (
-                <optgroup label="Uploaded Fonts">
-                  {customFontsList.map((f) => (
-                    <option key={f.value} value={f.value}>{f.label}</option>
-                  ))}
-                </optgroup>
-              )}
-              {SYSTEM_FONT_GROUPS.map((group) => (
-                <optgroup key={group.category} label={group.category}>
-                  {group.fonts.map((f) => (
-                    <option key={f.value} value={f.value}>{f.label}</option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-
-            <label
-              className="px-2 py-1 text-xs font-semibold text-cyan-300 bg-cyan-950/60 hover:bg-cyan-900/60 border border-cyan-800/60 rounded-lg cursor-pointer"
-              title="Upload custom .ttf or .otf file"
-            >
-              + Font
-              <input type="file" hidden accept=".ttf,.otf" onChange={handleFontUpload} />
-            </label>
-          </div>
-
-          <input
-            type="number"
-            min={8}
-            max={120}
-            value={fontSize}
-            onChange={(e) => handleFontSizeChange(Number(e.target.value))}
-            className="w-12 px-1.5 py-1 text-xs border border-slate-800 rounded-lg bg-slate-950 text-slate-100 font-semibold"
-          />
-
-          
-          {/* Barcode / QR Code Color Toggle (Black or White) */}
-          {hasSelection && fabricCanvasRef.current?.getActiveObject()?.isBarcode && (
-            <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-900 border border-slate-800 rounded-lg">
-              <span className="text-[11px] text-slate-400 font-medium">Code Color:</span>
-              <button
-                type="button"
-                onClick={() => handleBarcodeColorChange("#000000")}
-                className={"px-2 py-0.5 text-xs font-semibold rounded border transition " + 
-                  (selectedBarcodeColor.toLowerCase() === "#000000" || selectedBarcodeColor.toLowerCase() === "000000"
-                    ? "bg-slate-950 text-white border-cyan-400"
-                    : "bg-slate-900 text-slate-400 border-slate-800 hover:text-white")}
-              >
-                ⬛ Black
-              </button>
-              <button
-                type="button"
-                onClick={() => handleBarcodeColorChange("#ffffff")}
-                className={"px-2 py-0.5 text-xs font-semibold rounded border transition " + 
-                  (selectedBarcodeColor.toLowerCase() === "#ffffff" || selectedBarcodeColor.toLowerCase() === "ffffff"
-                    ? "bg-slate-200 text-slate-950 border-cyan-400"
-                    : "bg-slate-900 text-slate-400 border-slate-800 hover:text-white")}
-              >
-                ⬜ White
-              </button>
-            </div>
-          )}
-
-<input
-            type="color"
-            value={textColor}
-            onChange={(e) => handleColorChange(e.target.value)}
-            className="w-7 h-7 p-0.5 border border-slate-800 rounded-lg bg-slate-950 cursor-pointer"
-          />
-
-          <button
-            type="button"
-            onClick={handleBoldToggle}
-            className={`px-2 py-0.5 text-xs font-bold rounded-lg border transition ${
-              isBold ? 'bg-cyan-500 text-slate-950 border-cyan-400' : 'bg-slate-950 text-slate-300 border-slate-800 hover:text-white'
-            }`}
+          {/* Centered Scrollable Canvas Artboard */}
+          <div 
+            className="flex-1 overflow-auto flex items-center justify-center p-8 relative bg-slate-950/80"
+            onScroll={() => fabricCanvasRef.current?.calcOffset()}
           >
-            B
-          </button>
-
-          <button
-            type="button"
-            onClick={handleItalicToggle}
-            className={`px-2 py-0.5 text-xs italic font-serif font-bold rounded-lg border transition ${
-              isItalic ? 'bg-cyan-500 text-slate-950 border-cyan-400' : 'bg-slate-950 text-slate-300 border-slate-800 hover:text-white'
-            }`}
-          >
-            I
-          </button>
-
-          <button
-            type="button"
-            onClick={handleUppercaseToggle}
-            className={`px-2 py-0.5 text-xs font-black tracking-tight rounded-lg border transition ${
-              isUppercase ? 'bg-cyan-500 text-slate-950 border-cyan-400' : 'bg-slate-950 text-slate-300 border-slate-800 hover:text-white'
-            }`}
-          >
-            TT
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setShowRulesModal(true)}
-            className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition cursor-pointer flex items-center gap-1 ${
-              currentTagRules.length > 0
-                ? 'bg-indigo-600 text-white border-indigo-500 shadow-xs'
-                : 'bg-indigo-950/60 text-indigo-300 border-indigo-800/60 hover:bg-indigo-900/60'
-            }`}
-          >
-            <span>⚡</span> Rules ({currentTagRules.length})
-          </button>
-        </div>
-      </div>
-
-      {/* Dynamic Column Chips & Dynamic Barcodes */}
-      {csvHeaders.length > 0 && (
-        <div className="flex flex-col items-center mb-6 max-w-4xl text-center">
-          <div className="mb-3">
-            <p className="text-[11px] uppercase tracking-wider font-bold text-slate-400 mb-2">
-              Click a column to place on <span className="text-white">Page {currentPageIndex + 1}</span>:
-            </p>
-            <div className="flex flex-wrap gap-2 justify-center">
-              {csvHeaders.map((header) => (
-                <button
-                  key={header}
-                  onClick={() => addTagToCanvas(header)}
-                  className="px-3 py-1 text-xs bg-slate-900 hover:bg-slate-800 text-cyan-300 font-semibold border border-slate-800 hover:border-cyan-500/50 rounded-full shadow-xs transition cursor-pointer flex items-center gap-1.5"
-                >
-                  <span className="text-cyan-400 font-bold">+</span>
-                  {`{{${header}}}`}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-center gap-2 px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl shadow-xs">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Codes:</span>
-            <select
-              value={selectedBarcodeCol}
-              onChange={(e) => setSelectedBarcodeCol(e.target.value)}
-              className="px-2 py-0.5 text-xs border border-slate-800 rounded-md bg-slate-950 text-slate-200 font-medium"
-            >
-              {csvHeaders.map((h) => (
-                <option key={h} value={h}>{h}</option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={() => addBarcodeToCanvas(selectedBarcodeCol || csvHeaders[0], 'qrcode')}
-              className="px-2.5 py-1 text-xs font-bold bg-indigo-950 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/80 rounded-md transition cursor-pointer flex items-center gap-1"
-            >
-              <span>▦</span> + QR Code
-            </button>
-            <button
-              type="button"
-              onClick={() => addBarcodeToCanvas(selectedBarcodeCol || csvHeaders[0], 'code128')}
-              className="px-2.5 py-1 text-xs font-bold bg-indigo-950 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/80 rounded-md transition cursor-pointer flex items-center gap-1"
-            >
-              <span>||||</span> + Code 128
-            </button>
-            <button
-              type="button"
-              onClick={() => addBarcodeToCanvas(selectedBarcodeCol || csvHeaders[0], 'code39')}
-              className="px-2.5 py-1 text-xs font-bold bg-indigo-950 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/80 rounded-md transition cursor-pointer flex items-center gap-1"
-            >
-              <span>||||</span> + Code 39
-            </button>
-          </div>
-        </div>
-      )}
-
-      
-      </div>
-
-      {/* Isolated Studio Workarea & Canvas Container */}
+                  {/* Isolated Studio Workarea & Canvas Container */}
       <div className="w-full flex justify-center overflow-x-auto pb-16">
         <div
           style={{
@@ -2975,7 +2797,411 @@ export default function Home() {
       </div>
       </div>
 
-      {/* Scope Export Modal */}
+          </div>
+        </main>
+
+        {/* RIGHT INSPECTOR: Contextual Properties (w-80) */}
+        <aside className="w-80 shrink-0 border-l border-slate-800/80 bg-slate-900/40 flex flex-col justify-between overflow-y-auto p-3.5 gap-4">
+          <div className="flex flex-col gap-3.5">
+            <div className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 px-1">
+              Properties
+            </div>
+
+            {/* CARD 0: EXACT TRANSFORM */}
+            <div className={`p-3 bg-slate-900/80 border border-slate-800 rounded-xl flex flex-col gap-2.5 transition-all duration-150 ${hasSelection ? 'opacity-100 ring-1 ring-cyan-500/40' : 'opacity-35 pointer-events-none select-none'}`}>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Transform</span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsRatioLocked(!isRatioLocked)}
+                    className={`px-1.5 py-0.5 text-[10px] font-bold rounded border transition cursor-pointer flex items-center gap-1 ${
+                      isRatioLocked
+                        ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-xs'
+                        : 'bg-slate-950 hover:bg-slate-800 text-slate-400 border-slate-800'
+                    }`}
+                    title="Lock aspect ratio when resizing"
+                  >
+                    <span>{isRatioLocked ? '🔒' : '🔓'}</span>
+                    <span>Lock Ratio</span>
+                  </button>
+                  {!hasSelection && <span className="text-[9px] text-slate-500 font-medium">No selection</span>}
+                </div>
+              </div>
+
+              {/* X and Y */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex items-center bg-slate-950 border border-slate-800 rounded-lg px-2 py-1">
+                  <span className="text-[10px] font-bold text-slate-400 w-4 select-none">X</span>
+                  <input
+                    type="number"
+                    value={transformX}
+                    onChange={(e) => handleTransformChange('x', Number(e.target.value))}
+                    className="w-full bg-transparent text-right text-xs text-slate-100 font-semibold focus:outline-none"
+                  />
+                  <span className="text-[10px] text-slate-400 ml-1 select-none">px</span>
+                </div>
+
+                <div className="flex items-center bg-slate-950 border border-slate-800 rounded-lg px-2 py-1">
+                  <span className="text-[10px] font-bold text-slate-400 w-4 select-none">Y</span>
+                  <input
+                    type="number"
+                    value={transformY}
+                    onChange={(e) => handleTransformChange('y', Number(e.target.value))}
+                    className="w-full bg-transparent text-right text-xs text-slate-100 font-semibold focus:outline-none"
+                  />
+                  <span className="text-[10px] text-slate-400 ml-1 select-none">px</span>
+                </div>
+              </div>
+
+              {/* Width and Height */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex items-center bg-slate-950 border border-slate-800 rounded-lg px-2 py-1">
+                  <span className="text-[10px] font-bold text-slate-400 w-4 select-none">W</span>
+                  <input
+                    type="number"
+                    min={5}
+                    value={transformW}
+                    onChange={(e) => handleTransformChange('w', Number(e.target.value))}
+                    className="w-full bg-transparent text-right text-xs text-slate-100 font-semibold focus:outline-none"
+                  />
+                  <span className="text-[10px] text-slate-400 ml-1 select-none">px</span>
+                </div>
+
+                <div className="flex items-center bg-slate-950 border border-slate-800 rounded-lg px-2 py-1">
+                  <span className="text-[10px] font-bold text-slate-400 w-4 select-none">H</span>
+                  <input
+                    type="number"
+                    min={5}
+                    value={transformH}
+                    onChange={(e) => handleTransformChange('h', Number(e.target.value))}
+                    className="w-full bg-transparent text-right text-xs text-slate-100 font-semibold focus:outline-none"
+                  />
+                  <span className="text-[10px] text-slate-400 ml-1 select-none">px</span>
+                </div>
+              </div>
+
+              {/* Rotation Angle */}
+              <div className="flex items-center justify-between bg-slate-950 border border-slate-800 rounded-lg px-2 py-1">
+                <div className="flex items-center flex-1">
+                  <span className="text-[10px] font-bold text-slate-400 select-none mr-2">Angle</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={359}
+                    value={transformAngle}
+                    onChange={(e) => handleTransformChange('angle', Number(e.target.value))}
+                    className="w-full bg-transparent text-right text-xs text-slate-100 font-semibold focus:outline-none"
+                  />
+                  <span className="text-[10px] text-slate-400 ml-1 select-none">°</span>
+                </div>
+                {transformAngle !== 0 && (
+                  <button
+                    type="button"
+                    onClick={() => handleTransformChange('angle', 0)}
+                    className="ml-2 text-[10px] text-cyan-400 hover:text-cyan-300 font-semibold cursor-pointer"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* CARD 1: ARTBOARD ALIGNMENT */}
+            <div className={`p-3 bg-slate-900/80 border border-slate-800 rounded-xl flex flex-col gap-2 transition-all duration-150 ${hasSelection ? 'opacity-100 ring-1 ring-cyan-500/40' : 'opacity-35 pointer-events-none select-none'}`}>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Artboard Align</span>
+                {!hasSelection && <span className="text-[9px] text-slate-500 font-medium">No selection</span>}
+              </div>
+              <div className="grid grid-cols-3 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => alignSelectedToArtboard('left')}
+                  className="py-1 px-1.5 text-xs font-semibold bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800 rounded-lg cursor-pointer text-center"
+                >
+                  ⇤ Left
+                </button>
+                <button
+                  type="button"
+                  onClick={() => alignSelectedToArtboard('centerH')}
+                  className="py-1 px-1.5 text-xs font-bold bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-800/60 rounded-lg cursor-pointer text-center"
+                >
+                  ⇥ Center ⇤
+                </button>
+                <button
+                  type="button"
+                  onClick={() => alignSelectedToArtboard('right')}
+                  className="py-1 px-1.5 text-xs font-semibold bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800 rounded-lg cursor-pointer text-center"
+                >
+                  Right ⇥
+                </button>
+                <button
+                  type="button"
+                  onClick={() => alignSelectedToArtboard('top')}
+                  className="py-1 px-1.5 text-xs font-semibold bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800 rounded-lg cursor-pointer text-center"
+                >
+                  ⤊ Top
+                </button>
+                <button
+                  type="button"
+                  onClick={() => alignSelectedToArtboard('centerV')}
+                  className="py-1 px-1.5 text-xs font-bold bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-800/60 rounded-lg cursor-pointer text-center"
+                >
+                  Center V
+                </button>
+                <button
+                  type="button"
+                  onClick={() => alignSelectedToArtboard('bottom')}
+                  className="py-1 px-1.5 text-xs font-semibold bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800 rounded-lg cursor-pointer text-center"
+                >
+                  ⤋ Bottom
+                </button>
+              </div>
+            </div>
+
+            {/* CARD 2: BARCODE & QR CODE PROPERTIES */}
+            <div className={`p-3 bg-slate-900/80 border border-slate-800 rounded-xl flex flex-col gap-2.5 transition-all duration-150 ${selectedBarcode ? 'opacity-100 ring-1 ring-cyan-500/40' : 'opacity-35 pointer-events-none select-none'}`}>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Barcode / QR Properties</span>
+                {!selectedBarcode && <span className="text-[9px] text-slate-500 font-medium">Select a code</span>}
+              </div>
+              
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-semibold text-slate-400">Symbology Format:</span>
+                <select
+                  value={selectedBarcode?.barcodeType || 'qrcode'}
+                  onChange={(e) => handleBarcodeTypeChange(e.target.value as 'qrcode' | 'code128' | 'code39')}
+                  className="w-full px-2.5 py-1.5 text-xs border border-slate-800 rounded-lg bg-slate-950 text-slate-200 font-medium cursor-pointer focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                >
+                  <option value="code128">Code 128 (Standard Barcode)</option>
+                  <option value="code39">Code 39 (Alphanumeric)</option>
+                  <option value="qrcode">QR Code 2D Matrix</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1 pt-1">
+                <span className="text-[10px] font-semibold text-slate-400">Render Fill Color:</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleBarcodeColorChange("#000000")}
+                    className={"py-1.5 px-3 text-xs font-bold rounded-lg border transition cursor-pointer flex items-center justify-center gap-1.5 " +
+                      (selectedBarcodeColor.toLowerCase() === "#000000" || selectedBarcodeColor.toLowerCase() === "000000"
+                        ? "bg-cyan-500 text-slate-950 border-cyan-400 shadow-sm"
+                        : "bg-slate-950 hover:bg-slate-800 text-slate-300 border-slate-800")}
+                  >
+                    <span>⬛</span> Black
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleBarcodeColorChange("#ffffff")}
+                    className={"py-1.5 px-3 text-xs font-bold rounded-lg border transition cursor-pointer flex items-center justify-center gap-1.5 " +
+                      (selectedBarcodeColor.toLowerCase() === "#ffffff" || selectedBarcodeColor.toLowerCase() === "ffffff"
+                        ? "bg-cyan-500 text-slate-950 border-cyan-400 shadow-sm"
+                        : "bg-slate-950 hover:bg-slate-800 text-slate-300 border-slate-800")}
+                  >
+                    <span>⬜</span> White
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* CARD 3: TYPOGRAPHY & TEXT PROPERTIES */}
+            <div className={`p-3 bg-slate-900/80 border border-slate-800 rounded-xl flex flex-col gap-2.5 transition-all duration-150 ${selectedTag ? 'opacity-100 ring-1 ring-cyan-500/40' : 'opacity-35 pointer-events-none select-none'}`}>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Typography & Style</span>
+                {!selectedTag && <span className="text-[9px] text-slate-500 font-medium">Select a text field</span>}
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-semibold text-slate-400">Font Family:</span>
+                  <label
+                    className="text-[10px] font-semibold text-cyan-400 hover:text-cyan-300 cursor-pointer"
+                    title="Upload custom .ttf or .otf file"
+                  >
+                    + Custom Font
+                    <input type="file" hidden accept=".ttf,.otf" onChange={handleFontUpload} />
+                  </label>
+                </div>
+                <select
+                  value={fontFamily}
+                  onChange={(e) => handleFontFamilyChange(e.target.value)}
+                  disabled={loadingFont}
+                  className="w-full px-2 py-1.5 text-xs border border-slate-800 rounded-lg bg-slate-950 text-slate-200 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                >
+                  {customFontsList.length > 0 && (
+                    <optgroup label="Uploaded Fonts">
+                      {customFontsList.map((f) => (
+                        <option key={f.value} value={f.value}>{f.label}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {SYSTEM_FONT_GROUPS.map((group) => (
+                    <optgroup key={group.category} label={group.category}>
+                      {group.fonts.map((f) => (
+                        <option key={f.value} value={f.value}>{f.label}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] font-semibold text-slate-400">Size (pt):</span>
+                  <input
+                    type="number"
+                    min={8}
+                    max={120}
+                    value={fontSize}
+                    onChange={(e) => handleFontSizeChange(Number(e.target.value))}
+                    className="w-full px-2 py-1 text-xs border border-slate-800 rounded-lg bg-slate-950 text-slate-100 font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] font-semibold text-slate-400">Color:</span>
+                  <input
+                    type="color"
+                    value={textColor}
+                    onChange={(e) => handleColorChange(e.target.value)}
+                    className="w-full h-[29px] p-0.5 border border-slate-800 rounded-lg bg-slate-950 cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-1 pt-1">
+                <div className="flex items-center border border-slate-800 rounded-lg overflow-hidden bg-slate-950">
+                  <button
+                    type="button"
+                    onClick={() => handleAlignChange('left')}
+                    className={`px-2.5 py-1 text-xs font-semibold ${
+                      textAlign === 'left' ? 'bg-cyan-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    L
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAlignChange('center')}
+                    className={`px-2.5 py-1 text-xs font-semibold border-x border-slate-800 ${
+                      textAlign === 'center' ? 'bg-cyan-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    C
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAlignChange('right')}
+                    className={`px-2.5 py-1 text-xs font-semibold ${
+                      textAlign === 'right' ? 'bg-cyan-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    R
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={handleBoldToggle}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition ${
+                      isBold ? 'bg-cyan-500 text-slate-950 border-cyan-400' : 'bg-slate-950 text-slate-300 border-slate-800 hover:text-white'
+                    }`}
+                  >
+                    B
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleItalicToggle}
+                    className={`px-2.5 py-1 text-xs italic font-serif font-bold rounded-lg border transition ${
+                      isItalic ? 'bg-cyan-500 text-slate-950 border-cyan-400' : 'bg-slate-950 text-slate-300 border-slate-800 hover:text-white'
+                    }`}
+                  >
+                    I
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleUppercaseToggle}
+                    className={`px-2 py-1 text-xs font-black tracking-tight rounded-lg border transition ${
+                      isUppercase ? 'bg-cyan-500 text-slate-950 border-cyan-400' : 'bg-slate-950 text-slate-300 border-slate-800 hover:text-white'
+                    }`}
+                  >
+                    TT
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowRulesModal(true)}
+                className={`w-full mt-1 py-1.5 px-3 text-xs font-bold rounded-lg border transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                  currentTagRules.length > 0
+                    ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm'
+                    : 'bg-indigo-950/60 text-indigo-300 border-indigo-800/60 hover:bg-indigo-900/60'
+                }`}
+              >
+                <span>⚡</span> Conditional Rules ({currentTagRules.length})
+              </button>
+            </div>
+
+            {/* CARD 4: IMAGE CROP & MASK */}
+            <div className={`p-3 bg-slate-900/80 border border-slate-800 rounded-xl flex flex-col gap-2 transition-all duration-150 ${selectedImage ? 'opacity-100 ring-1 ring-cyan-500/40' : 'opacity-35 pointer-events-none select-none'}`}>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Image Shape Mask</span>
+                {!selectedImage && <span className="text-[9px] text-slate-500 font-medium">Select an image</span>}
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => applyImageMask('circle')}
+                  className={`py-1 px-2 text-xs font-bold rounded-lg border transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                    selectedImageMask === 'circle'
+                      ? 'bg-cyan-500 text-slate-950 border-cyan-400 font-black'
+                      : 'bg-slate-950 hover:bg-slate-800 text-slate-300 border-slate-800'
+                  }`}
+                >
+                  ◯ Circle
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyImageMask('rounded')}
+                  className={`py-1 px-2 text-xs font-bold rounded-lg border transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                    selectedImageMask === 'rounded'
+                      ? 'bg-cyan-500 text-slate-950 border-cyan-400 font-black'
+                      : 'bg-slate-950 hover:bg-slate-800 text-slate-300 border-slate-800'
+                  }`}
+                >
+                  ▢ Rounded
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyImageMask('square')}
+                  className={`py-1 px-2 text-xs font-bold rounded-lg border transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                    selectedImageMask === 'square'
+                      ? 'bg-cyan-500 text-slate-950 border-cyan-400 font-black'
+                      : 'bg-slate-950 hover:bg-slate-800 text-slate-300 border-slate-800'
+                  }`}
+                >
+                  □ 1:1 Square
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyImageMask('none')}
+                  className="py-1 px-2 text-xs font-medium text-slate-400 hover:text-rose-400 bg-slate-950 border border-slate-800 rounded-lg cursor-pointer text-center"
+                >
+                  Reset Crop
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </aside>
+      </div>
+
+      {/* 3. MODALS & OVERLAYS */}
+            {/* Scope Export Modal */}
       {showScopeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4">
           <div className="bg-slate-900 rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-slate-800 animate-in fade-in zoom-in-95 duration-150">
@@ -3329,6 +3555,7 @@ export default function Home() {
           </div>
         </div>
       )}
-    </main>
+    </div>
   );
 }
+
