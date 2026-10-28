@@ -16,6 +16,7 @@ export interface CanvasTextData {
   x: number;
   y: number;
   width: number;
+  height?: number;
   fontSize: number;
   pageIndex: number;
   color?: string;
@@ -31,7 +32,7 @@ export interface CanvasTextData {
 
 export interface CanvasBarcodeData {
   field: string;
-  barcodeType: 'qrcode' | 'code128';
+  barcodeType: 'qrcode' | 'code128' | 'code39';
   pageIndex: number;
   x: number;
   y: number;
@@ -85,30 +86,45 @@ const PDF_FONT_FALLBACK_MAP: Record<string, string> = {
 const barcodeBufferCache = new Map<string, Uint8Array>();
 
 async function generateBarcodePng(bcid: string, text: string, color: string = "#000000"): Promise<Uint8Array | null> {
-  if (!text) return null;
+  if (!text || typeof text !== "string" && typeof text !== "number") return null;
+  
+  let rawStr = String(text).trim();
+  if (!rawStr) return null;
+
+  // Format-aware sanitization
+  const normalizedBcid = bcid.toLowerCase();
+  if (normalizedBcid === "code39") {
+    // Code 39 requires uppercase and accepts standard punctuation only
+    rawStr = rawStr.toUpperCase().replace(/[^A-Z0-9 \-\.\$\+\/%]/g, "");
+    if (!rawStr) rawStr = "INVALID";
+  } else if (normalizedBcid === "ean13" || normalizedBcid === "upca") {
+    rawStr = rawStr.replace(/[^0-9]/g, "");
+    if (!rawStr) return null;
+  }
+
   const cleanHex = color.replace("#", "").trim() || "000000";
-  const cacheKey = `${bcid}_${text}_${cleanHex}`;
+  const cacheKey = `${normalizedBcid}_${rawStr}_${cleanHex}`;
   if (barcodeBufferCache.has(cacheKey)) {
     return barcodeBufferCache.get(cacheKey)!;
   }
 
   try {
     const opts: Record<string, any> = {
-      bcid,
-      text: String(text),
+      bcid: normalizedBcid,
+      text: rawStr,
       scale: 3,
-      includetext: bcid !== "qrcode",
+      includetext: normalizedBcid !== "qrcode",
       textxalign: "center",
       barcolor: cleanHex,
     };
-    if (bcid !== 'qrcode') {
+    if (normalizedBcid !== "qrcode") {
       opts.height = 10;
     }
 
-    const canvas = document.createElement('canvas');
+    const canvas = document.createElement("canvas");
     bwipjs.toCanvas(canvas, opts as any);
 
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
     if (!blob) return null;
 
     const arrayBuffer = await blob.arrayBuffer();
@@ -119,9 +135,33 @@ async function generateBarcodePng(bcid: string, text: string, color: string = "#
     }
     return bytes;
   } catch (err) {
-    console.error(`Barcode generation failed for "${text}":`, err);
+    console.warn(`[Barcode Warning] Could not encode "${rawStr}" as ${bcid}. Falling back to Code128/QR.`, err);
+    // Fallback attempt: if code39 or UPC failed, try code128 as a resilient fallback
+    if (normalizedBcid !== "code128" && normalizedBcid !== "qrcode") {
+      try {
+        const fallbackCanvas = document.createElement("canvas");
+        bwipjs.toCanvas(fallbackCanvas, {
+          bcid: "code128",
+          text: String(text).trim(),
+          scale: 3,
+          includetext: true,
+          textxalign: "center",
+          barcolor: cleanHex,
+          height: 10,
+        } as any);
+        const fallbackBlob = await new Promise<Blob | null>((resolve) => fallbackCanvas.toBlob(resolve, "image/png"));
+        if (fallbackBlob) {
+          const fbArray = await fallbackBlob.arrayBuffer();
+          const fbBytes = new Uint8Array(fbArray);
+          barcodeBufferCache.set(cacheKey, fbBytes);
+          return fbBytes;
+        }
+      } catch (innerErr) {
+        console.error("Barcode secondary fallback also failed:", innerErr);
+      }
+    }
     return null;
-  }
+    }
 }
 
 export function evaluateCondition(rawText: string, rule: ConditionalRule): boolean {
@@ -338,6 +378,7 @@ export async function generateVDP(
   }
 
   const totalRecords = csvData.length;
+  const embeddedBarcodeMap = new Map<string, any>();
   const YIELD_INTERVAL = 5;
 
   for (let rIdx = 0; rIdx < totalRecords; rIdx++) {
@@ -425,28 +466,71 @@ export async function generateVDP(
           selectedFont = selectedFontGroup.italic || selectedFontGroup.regular;
         }
 
-        // Draw line-by-line to match Fabric.js multi-line textboxes accurately
-        const lines = actualText.split("\n");
-        const singleLineHeight = effectiveFontSize * lineSpacingFactor;
+                // 1. Calculate usable dimensions
+        const maxBoxWidth = Math.max(10, boxWidth - (padOffset * 2));
+        const maxBoxHeight = ((field as any).height || 0) * scaleFactor;
 
+        // 2. Helper to break text into lines matching boxWidth
+        const wrapTextToWidth = (textToWrap: string, font: any, size: number, maxWidth: number): string[] => {
+          const rawLines = textToWrap.split("\n");
+          const wrapped: string[] = [];
+
+          for (const rawLine of rawLines) {
+            if (!rawLine.trim()) {
+              wrapped.push("");
+              continue;
+            }
+            const words = rawLine.split(" ");
+            let currentLine = words[0] || "";
+
+            for (let w = 1; w < words.length; w++) {
+              const testLine = currentLine + " " + words[w];
+              const testWidth = font.widthOfTextAtSize(testLine, size);
+              if (testWidth <= maxWidth) {
+                currentLine = testLine;
+              } else {
+                wrapped.push(currentLine);
+                currentLine = words[w];
+              }
+            }
+            wrapped.push(currentLine);
+          }
+          return wrapped;
+        };
+
+        // 3. Auto-shrink fontSize if content exceeds bounds
+        let renderedFontSize = effectiveFontSize;
+        let lines = wrapTextToWidth(actualText, selectedFont, renderedFontSize, maxBoxWidth);
+        const minFontSize = Math.max(6, effectiveFontSize * 0.4);
+
+        if (maxBoxHeight > 0) {
+          let totalHeight = lines.length * (renderedFontSize * lineSpacingFactor);
+          while ((totalHeight > maxBoxHeight || lines.some(l => selectedFont.widthOfTextAtSize(l, renderedFontSize) > maxBoxWidth + 2)) && renderedFontSize > minFontSize) {
+            renderedFontSize -= 0.5;
+            lines = wrapTextToWidth(actualText, selectedFont, renderedFontSize, maxBoxWidth);
+            totalHeight = lines.length * (renderedFontSize * lineSpacingFactor);
+          }
+        }
+
+        const singleLineHeight = renderedFontSize * lineSpacingFactor;
+
+        // 4. Draw wrapped & scaled lines
         lines.forEach((lineText, lineIndex) => {
           let lineX = basePdfX;
-          // Calibrated baseline offset to match Fabric.js top bounding box
-          const fontBaselineOffset = effectiveFontSize * 0.70;
+          const fontBaselineOffset = renderedFontSize * 0.86;
           const lineY = originY + pdfHeight - ((field.y * scaleFactor) + padOffset) - fontBaselineOffset - (lineIndex * singleLineHeight);
 
+          const textWidth = selectedFont.widthOfTextAtSize(lineText, renderedFontSize);
           if (field.textAlign === "center") {
-            const textWidth = selectedFont.widthOfTextAtSize(lineText, effectiveFontSize);
-            lineX = basePdfX + (boxWidth - textWidth) / 2;
+            lineX = basePdfX + (maxBoxWidth - textWidth) / 2;
           } else if (field.textAlign === "right") {
-            const textWidth = selectedFont.widthOfTextAtSize(lineText, effectiveFontSize);
-            lineX = basePdfX + (boxWidth - textWidth);
+            lineX = basePdfX + (maxBoxWidth - textWidth);
           }
 
           page.drawText(lineText, {
             x: lineX,
             y: lineY,
-            size: effectiveFontSize,
+            size: renderedFontSize,
             font: selectedFont,
             color: rgb(r, g, b),
           });
@@ -460,9 +544,21 @@ export async function generateVDP(
         const actualVal = row[bc.field] !== undefined ? String(row[bc.field]) : '';
         if (!actualVal) continue;
 
-        const pngData = await generateBarcodePng(bc.barcodeType, actualVal, bc.barcodeColor || "#000000");
-        if (pngData) {
-          const embeddedImg = await finalPdf.embedPng(pngData);
+        const cleanHex = (bc.barcodeColor || "#000000").replace("#", "").trim();
+        const barcodeKey = `${bc.barcodeType}_${actualVal}_${cleanHex}`;
+
+        let embeddedImg = embeddedBarcodeMap.get(barcodeKey);
+        if (!embeddedImg) {
+          const pngData = await generateBarcodePng(bc.barcodeType, actualVal, bc.barcodeColor || "#000000");
+          if (pngData) {
+            embeddedImg = await finalPdf.embedPng(pngData);
+            if (embeddedBarcodeMap.size < 1000) {
+              embeddedBarcodeMap.set(barcodeKey, embeddedImg);
+            }
+          }
+        }
+
+        if (embeddedImg) {
           const drawWidth = bc.width * scaleFactor;
           const drawHeight = bc.height * scaleFactor;
           const drawX = originX + (bc.x * scaleFactor);
