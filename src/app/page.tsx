@@ -2232,229 +2232,177 @@ export default function Home() {
         {/* CENTER STAGE: Canvas Viewport */}
         <main className="flex-1 flex flex-col min-w-0 bg-slate-950 overflow-hidden relative">
           {/* Top Control Bar: Zoom, Snap, Guides */}
-          <div className="shrink-0 border-b border-slate-800/80 bg-slate-900/30 px-3 py-1.5 flex items-center justify-between z-10">
-                  {/* Row 1 Floating Studio Shelf: Pages, Live Data, Zoom, Guides & Grid */}
-      <div className="flex flex-wrap items-center justify-center gap-2 mb-3 bg-slate-900/90 border border-slate-800 px-3 py-2 rounded-2xl shadow-lg">
-        {totalPages > 1 && (
-          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-950 border border-slate-800 rounded-xl">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Page:</span>
-            <button
-              type="button"
-              onClick={() => switchPage(currentPageIndex - 1)}
-              disabled={currentPageIndex === 0}
-              className="px-1.5 py-0.5 text-xs font-bold text-slate-300 hover:text-white disabled:opacity-30 cursor-pointer"
-            >
-              ◀
-            </button>
-            <span className="text-xs font-mono font-bold text-cyan-300 px-1">
-              {currentPageIndex + 1} / {totalPages}
-            </span>
-            <button
-              type="button"
-              onClick={() => switchPage(currentPageIndex + 1)}
-              disabled={currentPageIndex >= totalPages - 1}
-              className="px-1.5 py-0.5 text-xs font-bold text-slate-300 hover:text-white disabled:opacity-30 cursor-pointer"
-            >
-              ▶
-            </button>
-          </div>
-        )}
+          <div className="shrink-0 h-11 border-b border-slate-800 bg-slate-900/60 px-3 flex items-center justify-between gap-3 select-none z-10">
+            {/* Left: Viewport Controls (Zoom, Guides, Grid) */}
+            <div className="flex items-center gap-2">
+              {/* Zoom Controls */}
+              <div className="flex items-center bg-slate-950 border border-slate-800 rounded-lg p-0.5 text-xs">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2 select-none">
+                  Zoom
+                </span>
+                {ZOOM_LEVELS.map((lvl) => {
+                  const targetWidth = Math.round(BASE_CANVAS_WIDTH * lvl.scale);
+                  const isSelected = Math.abs(canvasWidth - targetWidth) < 15;
+                  return (
+                    <button
+                      key={lvl.label}
+                      type="button"
+                      onClick={() => handlePreviewResize(targetWidth)}
+                      className={`px-2 py-0.5 text-[11px] font-semibold rounded transition cursor-pointer ${
+                        isSelected
+                          ? 'bg-cyan-500 text-slate-950 font-bold shadow-xs'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-850'
+                      }`}
+                    >
+                      {lvl.label}
+                    </button>
+                  );
+                })}
+              </div>
 
-        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-950 border border-slate-800 rounded-xl">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Live:</span>
-          <button
-            type="button"
-            onClick={togglePreviewMode}
-            disabled={csvData.length === 0}
-            className={`px-2 py-0.5 text-xs font-bold rounded-lg transition cursor-pointer disabled:opacity-40 ${
-              isPreviewMode ? 'bg-cyan-500 text-slate-950 shadow-xs' : 'bg-slate-800 text-slate-400 hover:text-white'
-            }`}
-          >
-            {isPreviewMode ? 'ON' : 'OFF'}
-          </button>
+              <div className="h-4 w-px bg-slate-800 mx-0.5" />
 
-          <button
-            type="button"
-            onClick={() => handleRowStep(-1)}
-            disabled={!isPreviewMode || previewRowIndex === 0}
-            className="px-1.5 py-0.5 text-xs font-bold text-slate-400 hover:text-white disabled:opacity-30 cursor-pointer"
-          >
-            ◀
-          </button>
-          <span className="text-xs font-mono font-semibold text-slate-200 px-1 min-w-[50px] text-center">
-            {csvData.length > 0 ? `${previewRowIndex + 1}/${csvData.length}` : '0/0'}
-          </span>
-          <button
-            type="button"
-            onClick={() => handleRowStep(1)}
-            disabled={!isPreviewMode || previewRowIndex >= csvData.length - 1}
-            className="px-1.5 py-0.5 text-xs font-bold text-slate-400 hover:text-white disabled:opacity-30 cursor-pointer"
-          >
-            ▶
-          </button>
-        </div>
+              {/* Guides Controls */}
+              <div className="flex items-center bg-slate-950 border border-slate-800 rounded-lg p-0.5 text-xs">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2 select-none">
+                  Guides
+                </span>
+                <button
+                  type="button"
+                  onClick={() => addGuideLine('horizontal')}
+                  className="px-2 py-1 text-[11px] font-semibold text-cyan-300 hover:bg-slate-850 hover:text-cyan-200 rounded transition cursor-pointer"
+                  title="Add horizontal guideline"
+                >
+                  +H
+                </button>
+                <button
+                  type="button"
+                  onClick={() => addGuideLine('vertical')}
+                  className="px-2 py-1 text-[11px] font-semibold text-cyan-300 hover:bg-slate-850 hover:text-cyan-200 rounded transition cursor-pointer"
+                  title="Add vertical guideline"
+                >
+                  +V
+                </button>
+                <div className="h-3 w-px bg-slate-800 mx-0.5" />
+                <button
+                  type="button"
+                  onClick={clearAllGuides}
+                  className="px-2 py-1 text-[10px] font-medium text-slate-400 hover:text-rose-400 hover:bg-slate-850 rounded transition cursor-pointer"
+                  title="Clear all guidelines"
+                >
+                  Clear
+                </button>
+              </div>
 
-        <div className="flex items-center gap-1 px-2.5 py-1 bg-slate-950 border border-slate-800 rounded-xl">
-          <span
-            className="text-[11px] font-bold text-slate-400 uppercase tracking-wider cursor-help mr-0.5"
-            title="Editor canvas zoom level in 50% increments"
-          >
-            Zoom:
-          </span>
+              <div className="h-4 w-px bg-slate-800 mx-0.5" />
 
-          <button
-            type="button"
-            onClick={() => {
-              const currentRatio = canvasWidth / BASE_CANVAS_WIDTH;
-              const nextScale = Math.max(0.5, Math.round((currentRatio - 0.5) * 10) / 10);
-              handlePreviewResize(Math.round(BASE_CANVAS_WIDTH * nextScale));
-            }}
-            className="px-1.5 py-0.5 text-xs font-bold text-slate-400 hover:text-white rounded hover:bg-slate-850 cursor-pointer"
-            title="Zoom Out (-50%)"
-          >
-            −
-          </button>
+              {/* Grid Snap Controls */}
+              <div className="flex items-center bg-slate-950 border border-slate-800 rounded-lg p-0.5 text-xs">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2 select-none">
+                  Grid
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGridSnap(0);
+                    gridSnapRef.current = 0;
+                  }}
+                  className={`px-2 py-1 text-[11px] font-semibold rounded transition cursor-pointer ${
+                    gridSnap === 0
+                      ? 'bg-cyan-500 text-slate-950 font-bold shadow-xs'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-850'
+                  }`}
+                >
+                  Off
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGridSnap(10);
+                    gridSnapRef.current = 10;
+                  }}
+                  className={`px-2 py-1 text-[11px] font-semibold rounded transition cursor-pointer ${
+                    gridSnap === 10
+                      ? 'bg-cyan-500 text-slate-950 font-bold shadow-xs'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-850'
+                  }`}
+                >
+                  10px
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGridSnap(20);
+                    gridSnapRef.current = 20;
+                  }}
+                  className={`px-2 py-1 text-[11px] font-semibold rounded transition cursor-pointer ${
+                    gridSnap === 20
+                      ? 'bg-cyan-500 text-slate-950 font-bold shadow-xs'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-850'
+                  }`}
+                >
+                  20px
+                </button>
+              </div>
+            </div>
 
-          {ZOOM_LEVELS.map((lvl) => {
-            const targetWidth = Math.round(BASE_CANVAS_WIDTH * lvl.scale);
-            const isSelected = Math.abs(canvasWidth - targetWidth) < 15;
-            return (
+            {/* Right: History, Delete, Reset */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center bg-slate-950 border border-slate-800 rounded-lg p-0.5 text-xs">
+                <button
+                  type="button"
+                  onClick={handleUndo}
+                  disabled={!canUndo}
+                  className={`px-2.5 py-1 text-[11px] font-semibold rounded transition flex items-center gap-1.5 ${
+                    canUndo
+                      ? 'text-slate-200 hover:bg-slate-850 hover:text-white cursor-pointer'
+                      : 'text-slate-600 opacity-40 cursor-not-allowed'
+                  }`}
+                  title="Undo (⌘Z)"
+                >
+                  <span>↩</span> Undo
+                </button>
+                <div className="h-3 w-px bg-slate-800" />
+                <button
+                  type="button"
+                  onClick={handleRedo}
+                  disabled={!canRedo}
+                  className={`px-2.5 py-1 text-[11px] font-semibold rounded transition flex items-center gap-1.5 ${
+                    canRedo
+                      ? 'text-slate-200 hover:bg-slate-850 hover:text-white cursor-pointer'
+                      : 'text-slate-600 opacity-40 cursor-not-allowed'
+                  }`}
+                  title="Redo (⇧⌘Z)"
+                >
+                  Redo <span>↪</span>
+                </button>
+              </div>
+
               <button
-                key={lvl.label}
                 type="button"
-                onClick={() => handlePreviewResize(targetWidth)}
-                className={`px-2 py-0.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
-                  isSelected
-                    ? "bg-slate-200 text-slate-950 font-bold shadow-xs"
-                    : "text-slate-400 hover:text-white"
+                onClick={handleDeleteSelected}
+                disabled={!hasSelection}
+                className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition flex items-center gap-1 ${
+                  hasSelection
+                    ? 'bg-rose-950/50 hover:bg-rose-900/60 text-rose-300 border-rose-800/80 cursor-pointer shadow-xs'
+                    : 'bg-slate-950 text-slate-600 border-slate-800/50 opacity-40 cursor-not-allowed'
                 }`}
+                title="Delete selected item or guide"
               >
-                {lvl.label}
+                ✕ Delete
               </button>
-            );
-          })}
 
-          <button
-            type="button"
-            onClick={() => {
-              const currentRatio = canvasWidth / BASE_CANVAS_WIDTH;
-              const nextScale = Math.min(2.5, Math.round((currentRatio + 0.5) * 10) / 10);
-              handlePreviewResize(Math.round(BASE_CANVAS_WIDTH * nextScale));
-            }}
-            className="px-1.5 py-0.5 text-xs font-bold text-slate-400 hover:text-white rounded hover:bg-slate-850 cursor-pointer"
-            title="Zoom In (+50%)"
-          >
-            +
-          </button>
-        </div>
-
-        <div className="flex items-center gap-1 px-2.5 py-1 bg-slate-950 border border-slate-800 rounded-xl">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Guides:</span>
-          <button
-            type="button"
-            onClick={() => addGuideLine('horizontal')}
-            className="px-2 py-0.5 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-800/60 rounded-lg cursor-pointer"
-          >
-            + H
-          </button>
-          <button
-            type="button"
-            onClick={() => addGuideLine('vertical')}
-            className="px-2 py-0.5 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-800/60 rounded-lg cursor-pointer"
-          >
-            + V
-          </button>
-          <button
-            type="button"
-            onClick={clearAllGuides}
-            className="px-1.5 py-0.5 text-[11px] font-medium text-slate-500 hover:text-rose-400 cursor-pointer"
-          >
-            Clear
-          </button>
-        </div>
-
-        <div className="flex items-center gap-1 px-2.5 py-1 bg-slate-950 border border-slate-800 rounded-xl">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Grid:</span>
-          {SNAP_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => handleSnapOptionChange(opt.value)}
-              className={`px-2 py-0.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
-                gridSnap === opt.value
-                  ? 'bg-cyan-500 text-slate-950 font-bold'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              {opt.label.replace('Snap: ', '')}
-            </button>
-          ))}
-          {gridSnap > 0 && (
-            <button
-              type="button"
-              onClick={() => setShowGridOverlay(!showGridOverlay)}
-              className="ml-1 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400 border border-slate-800 rounded cursor-pointer hover:text-white"
-            >
-              {showGridOverlay ? 'Hide Dots' : 'Dots'}
-            </button>
-          )}
-        </div>
-
-        {/* Canvas Actions: Undo, Redo, Delete, Reset */}
-        <div className="flex items-center gap-1.5 ml-auto">
-          <div className="flex items-center rounded-xl bg-slate-950 border border-slate-800 p-0.5">
-            <button
-              type="button"
-              onClick={handleUndo}
-              disabled={!canUndo}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition flex items-center gap-1 ${
-                canUndo ? 'text-slate-200 hover:bg-slate-800 hover:text-white cursor-pointer' : 'text-slate-600 opacity-40 cursor-not-allowed'
-              }`}
-              title="Undo (⌘Z)"
-            >
-              <span>↩</span> Undo
-            </button>
-            <div className="h-3.5 w-px bg-slate-800" />
-            <button
-              type="button"
-              onClick={handleRedo}
-              disabled={!canRedo}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition flex items-center gap-1 ${
-                canRedo ? 'text-slate-200 hover:bg-slate-800 hover:text-white cursor-pointer' : 'text-slate-600 opacity-40 cursor-not-allowed'
-              }`}
-              title="Redo (⇧⌘Z)"
-            >
-              Redo <span>↪</span>
-            </button>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleDeleteSelected}
-            disabled={!hasSelection}
-            className={`px-2.5 py-1 text-xs font-semibold rounded-xl border transition flex items-center gap-1 ${
-              hasSelection
-                ? 'bg-rose-950/60 text-rose-300 border-rose-800/80 hover:bg-rose-900/60 cursor-pointer shadow-xs'
-                : 'bg-slate-950 text-slate-600 border-slate-800/50 opacity-40 cursor-not-allowed'
-            }`}
-            title="Delete selected item or guide"
-          >
-            ✕ Delete
-          </button>
-
-          {pdfBytes && (
-            <button
-              type="button"
-              onClick={handleResetProject}
-              className="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-semibold rounded-xl transition cursor-pointer flex items-center gap-1 active:scale-95 shadow-xs"
-              title="Reset PDF background and canvas elements"
-            >
-              Reset
-            </button>
-          )}
-        </div>
-      </div>
-
+              {pdfBytes && (
+                <button
+                  type="button"
+                  onClick={handleResetProject}
+                  className="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-semibold rounded-lg transition cursor-pointer flex items-center gap-1 active:scale-95 shadow-xs"
+                  title="Reset PDF background and canvas elements"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Centered Scrollable Canvas Artboard */}
