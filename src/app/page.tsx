@@ -144,6 +144,8 @@ export default function Home() {
   const [tableSearchQuery, setTableSearchQuery] = useState<string>('');
 
   const [guideBounds, setGuideBounds] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
+  const [viewportScroll, setViewportScroll] = useState<{ left: number; top: number }>({ left: 0, top: 0 });
+  const viewportScrollContainerRef = useRef<HTMLDivElement>(null);
 
   const [customFontsList, setCustomFontsList] = useState<{ label: string; value: string }[]>([]);
   const customFontsRef = useRef<Record<string, ArrayBuffer>>({});
@@ -2405,242 +2407,167 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Centered Scrollable Canvas Artboard */}
-          <div 
-            className="flex-1 overflow-auto flex items-center justify-center p-8 relative bg-slate-950/80"
-            onScroll={() => fabricCanvasRef.current?.calcOffset()}
-          >
-                  {/* Isolated Studio Workarea & Canvas Container */}
-      <div className="w-full flex justify-center overflow-x-auto pb-16">
-        <div
-          style={{
-            display: 'inline-block',
-            backgroundColor: '#020617',
-            padding: '12px',
-            borderRadius: '16px',
-            boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.7)',
-            border: '1px solid #1e293b',
-          }}
-        >
-          {/* Empty State: Compact Drag & Drop Card */}
-      {!pdfBytes && (
-        <div className="flex flex-col items-center justify-center py-16 px-4 w-full">
-          <div
-            onDragOver={(e) => {
-              e.preventDefault();
-              setIsDraggingPdf(true);
-            }}
-            onDragLeave={() => setIsDraggingPdf(false)}
-            onDrop={async (e) => {
-              e.preventDefault();
-              setIsDraggingPdf(false);
-              const file = e.dataTransfer.files?.[0];
-              if (file && file.type === "application/pdf") {
-                await processPdfFile(file);
-              } else if (file) {
-                alert("Please drop a valid .pdf file.");
-              }
-            }}
-            className={"w-full max-w-md p-8 rounded-2xl border-2 border-dashed flex flex-col items-center text-center transition-all duration-200 backdrop-blur-md shadow-2xl select-none " +
-              (isDraggingPdf
-                ? "bg-cyan-950/70 border-cyan-400 text-cyan-200 scale-[1.02]"
-                : "bg-slate-900/60 border-slate-700/80 hover:border-cyan-500/50 hover:bg-slate-900/90 text-slate-300")}
-          >
-            <div className="w-14 h-14 mb-4 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-center text-2xl shadow-inner">
-              📄
-            </div>
-            <h3 className="text-base font-bold text-slate-100 mb-1">
-              Drag & drop your Background PDF
-            </h3>
-            <p className="text-xs text-slate-400 mb-6 max-w-xs leading-relaxed">
-              Upload your certificate, badge, or document template to start adding dynamic fields.
-            </p>
-
-            <label className="px-5 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-cyan-950/40 transition-all cursor-pointer flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]">
-              <span>Browse PDF File</span>
-              <input
-                type="file"
-                hidden
-                accept="application/pdf"
-                onChange={handlePdfUpload}
-              />
-            </label>
-          </div>
-        </div>
-      )}
-
-      {/* Canvas & Rulers Wrapper */}
-      <div style={{ display: pdfBytes ? "block" : "none" }}>
-          {/* Top Row: Corner Box + Horizontal Ruler */}
-          <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+          {/* Centered Scrollable Canvas Artboard with Viewport Perimeter Rulers */}
+          <div className="relative flex-1 overflow-hidden bg-slate-950 flex flex-col">
+            {/* Top-Left Corner Block */}
             <div
-              style={{
-                width: `${RULER_SIZE}px`,
-                height: `${RULER_SIZE}px`,
-                backgroundColor: '#090d16',
-                borderRight: '1px solid #1e293b',
-                borderBottom: '1px solid #1e293b',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '11px',
-                fontWeight: 'bold',
-                fontFamily: 'monospace',
-                color: '#64748b',
-                userSelect: 'none',
-              }}
+              className="absolute top-0 left-0 z-20 bg-slate-900 border-r border-b border-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-500 font-mono select-none"
+              style={{ width: `${RULER_SIZE}px`, height: `${RULER_SIZE}px` }}
             >
               px
             </div>
 
+            {/* Horizontal Perimeter Ruler (Top) */}
             <div
-              style={{
-                width: `${canvasWidth}px`,
-                height: `${RULER_SIZE}px`,
-                backgroundColor: '#090d16',
-                borderBottom: '1px solid #1e293b',
-                position: 'relative',
-                overflow: 'hidden',
-              }}
-            >
-              <svg width={canvasWidth} height={RULER_SIZE} style={{ display: 'block' }}>
-                <defs>
-                  <pattern id="ruler-grid-x-10" width="10" height={RULER_SIZE} patternUnits="userSpaceOnUse">
-                    <line x1="0" y1={RULER_SIZE - 6} x2="0" y2={RULER_SIZE} stroke="#1e293b" strokeWidth="1" />
-                  </pattern>
-                  <pattern id="ruler-grid-x-50" width="50" height={RULER_SIZE} patternUnits="userSpaceOnUse">
-                    <line x1="0" y1={RULER_SIZE - 12} x2="0" y2={RULER_SIZE} stroke="#334155" strokeWidth="1.2" />
-                  </pattern>
-                </defs>
-                <rect width={canvasWidth} height={RULER_SIZE} fill="url(#ruler-grid-x-10)" />
-                <rect width={canvasWidth} height={RULER_SIZE} fill="url(#ruler-grid-x-50)" />
-                {horizontalMarks.map((x) => (
-                  <g key={`x-${x}`}>
-                    <line x1={x} y1="0" x2={x} y2={RULER_SIZE} stroke="#475569" strokeWidth="1.5" />
-                    {x !== 0 && (
-                      <text x={x + 3} y="12" fill="#94a3b8" fontSize="10" fontWeight="bold" fontFamily="monospace">
-                        {x}
-                      </text>
-                    )}
-                  </g>
-                ))}
-              </svg>
-
-              {guideBounds && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: `${guideBounds.left}px`,
-                    width: `${guideBounds.width}px`,
-                    height: `${RULER_SIZE}px`,
-                    backgroundColor: 'rgba(56, 189, 248, 0.35)',
-                    borderLeft: '2px solid #38bdf8',
-                    borderRight: '2px solid #38bdf8',
-                    pointerEvents: 'none',
-                  }}
-                />
-              )}
-            </div>
-          </div>
-
-          {/* Bottom Row: Vertical Ruler + Fabric Canvas */}
-          <div style={{ display: 'flex' }}>
-            <div
-              style={{
-                width: `${RULER_SIZE}px`,
-                height: `${canvasHeight}px`,
-                backgroundColor: '#090d16',
-                borderRight: '1px solid #1e293b',
-                position: 'relative',
-                overflow: 'hidden',
-              }}
-            >
-              <svg width={RULER_SIZE} height={canvasHeight} style={{ display: 'block' }}>
-                <defs>
-                  <pattern id="ruler-grid-y-10" width={RULER_SIZE} height="10" patternUnits="userSpaceOnUse">
-                    <line x1={RULER_SIZE - 6} y1="0" x2={RULER_SIZE} y2="0" stroke="#1e293b" strokeWidth="1" />
-                  </pattern>
-                  <pattern id="ruler-grid-y-50" width={RULER_SIZE} height="50" patternUnits="userSpaceOnUse">
-                    <line x1={RULER_SIZE - 12} y1="0" x2={RULER_SIZE} y2="0" stroke="#334155" strokeWidth="1.2" />
-                  </pattern>
-                </defs>
-                <rect width={RULER_SIZE} height={canvasHeight} fill="url(#ruler-grid-y-10)" />
-                <rect width={RULER_SIZE} height={canvasHeight} fill="url(#ruler-grid-y-50)" />
-                {verticalMarks.map((y) => (
-                  <g key={`y-${y}`}>
-                    <line x1="0" y1={y} x2={RULER_SIZE} y2={y} stroke="#475569" strokeWidth="1.5" />
-                    {y !== 0 && (
-                      <text
-                        x="13"
-                        y={y - 3}
-                        fill="#94a3b8"
-                        fontSize="10"
-                        fontWeight="bold"
-                        fontFamily="monospace"
-                        transform={`rotate(-90, 13, ${y - 3})`}
-                      >
-                        {y}
-                      </text>
-                    )}
-                  </g>
-                ))}
-              </svg>
-
-              {guideBounds && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: 0,
-                    top: `${guideBounds.top}px`,
-                    width: `${RULER_SIZE}px`,
-                    height: `${guideBounds.height}px`,
-                    backgroundColor: 'rgba(56, 189, 248, 0.35)',
-                    borderTop: '2px solid #38bdf8',
-                    borderBottom: '2px solid #38bdf8',
-                    pointerEvents: 'none',
-                  }}
-                />
-              )}
-            </div>
-
-            <div
-              style={{
-                width: `${canvasWidth}px`,
-                height: `${canvasHeight}px`,
-                position: 'relative',
-                backgroundColor: '#ffffff',
-                boxShadow: '0 10px 30px -10px rgba(0,0,0,0.5)',
-              }}
+              className="absolute top-0 right-0 z-10 bg-[#090d16] border-b border-slate-800 overflow-hidden pointer-events-none"
+              style={{ left: `${RULER_SIZE}px`, height: `${RULER_SIZE}px` }}
             >
               <div
                 style={{
-                  position: 'absolute',
-                  inset: 0,
+                  transform: `translateX(${-viewportScroll.left + (viewportScrollContainerRef.current ? Math.max(0, (viewportScrollContainerRef.current.clientWidth - canvasWidth) / 2) : 0)}px)`,
                   width: `${canvasWidth}px`,
-                  height: `${canvasHeight}px`,
-                  pointerEvents: 'none',
-                  zIndex: 20,
-                  display: gridSnap > 0 && showGridOverlay ? 'block' : 'none',
-                  backgroundImage: 'radial-gradient(rgba(15, 23, 42, 0.45) 1.2px, transparent 1.2px)',
-                  backgroundSize: `${gridSnap}px ${gridSnap}px`,
+                  height: `${RULER_SIZE}px`,
+                  position: 'relative',
                 }}
-              />
+              >
+                <svg width={canvasWidth} height={RULER_SIZE} style={{ display: 'block' }}>
+                  <defs>
+                    <pattern id="ruler-grid-x-10" width="10" height={RULER_SIZE} patternUnits="userSpaceOnUse">
+                      <line x1="0" y1={RULER_SIZE - 6} x2="0" y2={RULER_SIZE} stroke="#1e293b" strokeWidth="1" />
+                    </pattern>
+                    <pattern id="ruler-grid-x-50" width="50" height={RULER_SIZE} patternUnits="userSpaceOnUse">
+                      <line x1="0" y1={RULER_SIZE - 12} x2="0" y2={RULER_SIZE} stroke="#334155" strokeWidth="1.2" />
+                    </pattern>
+                  </defs>
+                  <rect width={canvasWidth} height={RULER_SIZE} fill="url(#ruler-grid-x-10)" />
+                  <rect width={canvasWidth} height={RULER_SIZE} fill="url(#ruler-grid-x-50)" />
+                  {horizontalMarks.map((x) => (
+                    <g key={`x-${x}`}>
+                      <line x1={x} y1="0" x2={x} y2={RULER_SIZE} stroke="#475569" strokeWidth="1.5" />
+                      {x !== 0 && (
+                        <text x={x + 3} y="12" fill="#94a3b8" fontSize="10" fontWeight="bold" fontFamily="monospace">
+                          {x}
+                        </text>
+                      )}
+                    </g>
+                  ))}
+                </svg>
 
+                {guideBounds && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: `${guideBounds.left}px`,
+                      width: `${guideBounds.width}px`,
+                      height: `${RULER_SIZE}px`,
+                      backgroundColor: 'rgba(56, 189, 248, 0.35)',
+                      borderLeft: '2px solid #38bdf8',
+                      borderRight: '2px solid #38bdf8',
+                      pointerEvents: 'none',
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Vertical Perimeter Ruler (Left) */}
+            <div
+              className="absolute left-0 bottom-0 z-10 bg-[#090d16] border-r border-slate-800 overflow-hidden pointer-events-none"
+              style={{ top: `${RULER_SIZE}px`, width: `${RULER_SIZE}px` }}
+            >
               <div
-                ref={containerRef}
+                style={{
+                  transform: `translateY(${-viewportScroll.top + (viewportScrollContainerRef.current ? Math.max(0, (viewportScrollContainerRef.current.clientHeight - canvasHeight) / 2) : 0)}px)`,
+                  height: `${canvasHeight}px`,
+                  width: `${RULER_SIZE}px`,
+                  position: 'relative',
+                }}
+              >
+                <svg width={RULER_SIZE} height={canvasHeight} style={{ display: 'block' }}>
+                  <defs>
+                    <pattern id="ruler-grid-y-10" width={RULER_SIZE} height="10" patternUnits="userSpaceOnUse">
+                      <line x1={RULER_SIZE - 6} y1="0" x2={RULER_SIZE} y2="0" stroke="#1e293b" strokeWidth="1" />
+                    </pattern>
+                    <pattern id="ruler-grid-y-50" width={RULER_SIZE} height="50" patternUnits="userSpaceOnUse">
+                      <line x1={RULER_SIZE - 12} y1="0" x2={RULER_SIZE} y2="0" stroke="#334155" strokeWidth="1.2" />
+                    </pattern>
+                  </defs>
+                  <rect width={RULER_SIZE} height={canvasHeight} fill="url(#ruler-grid-y-10)" />
+                  <rect width={RULER_SIZE} height={canvasHeight} fill="url(#ruler-grid-y-50)" />
+                  {verticalMarks.map((y) => (
+                    <g key={`y-${y}`}>
+                      <line x1="0" y1={y} x2={RULER_SIZE} y2={y} stroke="#475569" strokeWidth="1.5" />
+                      {y !== 0 && (
+                        <text
+                          x="13"
+                          y={y - 3}
+                          fill="#94a3b8"
+                          fontSize="10"
+                          fontWeight="bold"
+                          fontFamily="monospace"
+                          transform={`rotate(-90, 13, ${y - 3})`}
+                        >
+                          {y}
+                        </text>
+                      )}
+                    </g>
+                  ))}
+                </svg>
+
+                {guideBounds && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      left: 0,
+                      top: `${guideBounds.top}px`,
+                      width: `${RULER_SIZE}px`,
+                      height: `${guideBounds.height}px`,
+                      backgroundColor: 'rgba(56, 189, 248, 0.35)',
+                      borderTop: '2px solid #38bdf8',
+                      borderBottom: '2px solid #38bdf8',
+                      pointerEvents: 'none',
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Scrollable Viewport Stage */}
+            <div
+              ref={viewportScrollContainerRef}
+              className="flex-1 overflow-auto flex items-center justify-center p-12 relative bg-slate-950/80"
+              style={{
+                marginLeft: `${RULER_SIZE}px`,
+                marginTop: `${RULER_SIZE}px`,
+              }}
+              onScroll={(e) => {
+                const target = e.currentTarget;
+                setViewportScroll({ left: target.scrollLeft, top: target.scrollTop });
+                fabricCanvasRef.current?.calcOffset();
+              }}
+            >
+              {/* Isolated White Document Canvas Card */}
+              <div
                 style={{
                   width: `${canvasWidth}px`,
                   height: `${canvasHeight}px`,
                   position: 'relative',
+                  backgroundColor: '#ffffff',
+                  boxShadow: '0 20px 40px -15px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.08)',
                 }}
-              />
+              >
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    width: `${canvasWidth}px`,
+                    height: `${canvasHeight}px`,
+                  }}
+                  ref={containerRef}
+                />
+              </div>
             </div>
-          </div>
-        </div>
-      </div>
-      </div>
-
           </div>
 
           {/* SLIDE-UP CSV DATA TABLE DRAWER */}
