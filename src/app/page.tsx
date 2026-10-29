@@ -2764,11 +2764,6 @@ export default function Home() {
                 margin: 'auto',
                   backgroundColor: '#ffffff',
                   boxShadow: '0 20px 40px -15px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.08)',
-                ...(showGridOverlay && gridSnap > 0 ? {
-                  backgroundImage: `radial-gradient(circle, #cbd5e1 1px, transparent 1px)`,
-                  backgroundSize: `${gridSnap}px ${gridSnap}px`,
-                  backgroundPosition: '0 0'
-                } : {})
               }}
               >
                 <div
@@ -2780,6 +2775,16 @@ export default function Home() {
                   }}
                   ref={containerRef}
                 />
+                {showGridOverlay && gridSnap > 0 && (
+                  <div
+                    className="pointer-events-none absolute inset-0 z-50 mix-blend-difference opacity-40"
+                    style={{
+                      backgroundImage: `radial-gradient(circle, #ffffff 1.5px, transparent 1.5px)`,
+                      backgroundSize: `${gridSnap}px ${gridSnap}px`,
+                      backgroundPosition: '0 0'
+                    }}
+                  />
+                )}
               </div>
             </div>
           </div>
