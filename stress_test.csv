@@ -1,0 +1,6 @@
+fullName,roleTitle,badgeId,qrCodeVal,department
+Jane Doe,Lead Architect,ID-1001,https://verify.org/id/1001,Engineering
+"Dr. Alexander Bartholomew Montgomery-Fitzgerald III, Ph.D., Lead Principal Systems Reliability Architect","Director of Advanced Infrastructure, Global Cloud Operations & Deep Learning Resiliency",ID-1002,https://verify.org/id/1002,Security & Infrastructure
+Max Mustermann,Intern,abc-lowercase-39,https://verify.org/user/intern,Product
+Elena Rostova,VP Engineering,"9988#@!%^",https://verify.org/vip/9988,Executive
+"O'Connor, Siobhán & Jean-Luc François",Consultant & Strategist,ID-1005,"HTTPS://AUTH.TEST/TOKEN?USER=François&ROLE=ADMIN",Consulting

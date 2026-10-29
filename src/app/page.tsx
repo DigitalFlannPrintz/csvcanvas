@@ -212,7 +212,7 @@ export default function Home() {
       'imageDataUrl',
       'originalRawDataUrl',
       'maskShape',
-        'barcodeColor',
+      'barcodeColor',
     ]);
     data.pageIndex = currentPageIndexRef.current;
     if (obj.isStaticImage) {
@@ -423,7 +423,7 @@ export default function Home() {
     });
   };
 
-    const handleResetProject = () => {
+  const handleResetProject = () => {
     const confirmed = window.confirm(
       "Start over? This will remove the current template and all canvas elements. Your uploaded CSV data will remain loaded."
     );
@@ -745,7 +745,6 @@ export default function Home() {
     });
   };
 
-  
   const handleBarcodeColorChange = async (newColor: string) => {
     setSelectedBarcodeColor(newColor);
     const canvas = fabricCanvasRef.current;
@@ -860,7 +859,6 @@ export default function Home() {
       let effectiveItalic = obj.fontStyle === "italic";
 
       if (enablePreview) {
-        // Replace all instances of {{columnName}} dynamically
         displayText = obj.rawTemplateTag.replace(/\{\{\s*(\w+)\s*\}\}/g, (_: string, colName: string) => {
           return currentRow[colName] !== undefined ? String(currentRow[colName]) : `{{${colName}}}`;
         });
@@ -1613,7 +1611,6 @@ export default function Home() {
     };
   }, []);
 
-    
   const processRasterImageFile = (file: File) => {
     return new Promise<void>((resolve, reject) => {
       const canvas = fabricCanvasRef.current;
@@ -1630,7 +1627,6 @@ export default function Home() {
           let w = imgEl.naturalWidth;
           let h = imgEl.naturalHeight;
 
-          // Default fallback constraints if dimensions are 0
           if (!w || !h) {
             w = 850;
             h = 1100;
@@ -1746,23 +1742,23 @@ export default function Home() {
     }
   };
 
-    const addFreeformText = (initialString: string = "Double-click to type...") => {
+  const addFreeformText = (initialString: string = "Double-click to type...") => {
     const canvas = fabricCanvasRef.current;
     const fb = fabricModuleRef.current;
     if (!canvas || !fb) return;
 
     const snap = gridSnapRef.current || 1;
     const cvs = fabricCanvasRef.current;
-      const vpt = cvs.viewportTransform || [1, 0, 0, 1, 0, 0];
-      const zoom = cvs.getZoom() || 1;
-      
-      const visibleCenterX = (-vpt[4] + (cvs.getWidth() / 2)) / zoom;
-      const visibleCenterY = (-vpt[5] + (cvs.getHeight() / 2)) / zoom;
-      
-      const offset = (Math.random() * 40) - 20; 
-      
-      const rawLeft = visibleCenterX + offset;
-      const rawTop = visibleCenterY + offset;
+    const vpt = cvs.viewportTransform || [1, 0, 0, 1, 0, 0];
+    const zoom = cvs.getZoom() || 1;
+
+    const visibleCenterX = (-vpt[4] + (cvs.getWidth() / 2)) / zoom;
+    const visibleCenterY = (-vpt[5] + (cvs.getHeight() / 2)) / zoom;
+
+    const offset = (Math.random() * 40) - 20; 
+
+    const rawLeft = visibleCenterX + offset;
+    const rawTop = visibleCenterY + offset;
 
     const textObj = new fb.Textbox(initialString, {
       left: (() => {
@@ -1774,7 +1770,6 @@ export default function Home() {
       top: (() => {
         const cvs = fabricCanvasRef.current;
         const rect = cvs?.lowerCanvasEl?.getBoundingClientRect();
-        // Adjust for standard browser scroll using bounding box
         const center = rect ? (window.innerHeight / 2) - rect.top : rawTop;
         return Math.round((center + (Math.random() * 40 - 20)) / snap) * snap;
       })(),
@@ -1833,18 +1828,17 @@ export default function Home() {
 
       const text = new fb.Textbox(initialText, {
         left: (() => {
-        const cvs = fabricCanvasRef.current;
-        const rect = cvs?.lowerCanvasEl?.getBoundingClientRect();
-        const center = rect ? (window.innerWidth / 2) - rect.left : rawLeft;
-        return Math.round((center + (Math.random() * 40 - 20)) / snap) * snap;
-      })(),
-      top: (() => {
-        const cvs = fabricCanvasRef.current;
-        const rect = cvs?.lowerCanvasEl?.getBoundingClientRect();
-        // Adjust for standard browser scroll using bounding box
-        const center = rect ? (window.innerHeight / 2) - rect.top : rawTop;
-        return Math.round((center + (Math.random() * 40 - 20)) / snap) * snap;
-      })(),
+          const cvs = fabricCanvasRef.current;
+          const rect = cvs?.lowerCanvasEl?.getBoundingClientRect();
+          const center = rect ? (window.innerWidth / 2) - rect.left : rawLeft;
+          return Math.round((center + (Math.random() * 40 - 20)) / snap) * snap;
+        })(),
+        top: (() => {
+          const cvs = fabricCanvasRef.current;
+          const rect = cvs?.lowerCanvasEl?.getBoundingClientRect();
+          const center = rect ? (window.innerHeight / 2) - rect.top : rawTop;
+          return Math.round((center + (Math.random() * 40 - 20)) / snap) * snap;
+        })(),
         width: 220,
         fontSize: 24,
         fill: '#0f172a',
@@ -2077,99 +2071,89 @@ export default function Home() {
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-950 text-slate-100 selection:bg-cyan-500 selection:text-white">
       {/* 1. TOP GLOBAL APP HEADER */}
       <div className="shrink-0 z-30">
-              {/* Sleek Top Navigation Bar with Starter Templates Dropdown */}
-      <header className="w-full border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-30 px-6 py-3 flex items-center justify-between shadow-xs mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center shadow-md shadow-cyan-500/20">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="8" y1="13" x2="16" y2="13" />
-              <line x1="8" y1="17" x2="13" y2="17" />
-            </svg>
-          </div>
-
-          <div className="flex items-baseline gap-2">
-            <span className="text-xl font-black tracking-tight text-white font-sans">
-              CSV<span className="text-cyan-400">Canvas</span>
-            </span>
-            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 font-mono">
-              VDP STUDIO
-            </span>
-          </div>
+        {/* Sleek Top Navigation Bar with Starter Templates Dropdown */}
+        <header className="w-full border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-30 px-6 py-3 flex items-center justify-between shadow-xs mb-6">
+          <div className="flex items-center gap-4">
+          <img
+            src="/CSVCanvas_SiteLogo.svg"
+            alt="CSVCanvas Logo"
+            className="h-7 w-auto" 
+          />
+          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 font-mono shrink-0">
+            VDP STUDIO
+          </span>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* STARTER PACK TEMPLATES DROPDOWN */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowTemplateDropdown(!showTemplateDropdown)}
-              className="px-3 py-1.5 bg-slate-900 hover:bg-slate-850 text-cyan-300 border border-cyan-500/40 hover:border-cyan-400 font-bold text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5"
-            >
-              <span>✨</span>
-              <span>Sample Templates</span>
-              <span className="text-[10px]">▼</span>
-            </button>
+          <div className="flex items-center gap-3">
+            {/* STARTER PACK TEMPLATES DROPDOWN */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowTemplateDropdown(!showTemplateDropdown)}
+                className="px-3 py-1.5 bg-slate-900 hover:bg-slate-850 text-cyan-300 border border-cyan-500/40 hover:border-cyan-400 font-bold text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5"
+              >
+                <span>✨</span>
+                <span>Sample Templates</span>
+                <span className="text-[10px]">▼</span>
+              </button>
 
-            {showTemplateDropdown && (
-              <div className="absolute right-0 mt-2 w-64 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
-                <div className="px-3 py-1.5 border-b border-slate-800">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Load Built-in Demo
-                  </span>
+              {showTemplateDropdown && (
+                <div className="absolute right-0 mt-2 w-64 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="px-3 py-1.5 border-b border-slate-800">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      Load Built-in Demo
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => loadStarterTemplate('badge')}
+                    className="w-full text-left px-3 py-2 text-xs hover:bg-slate-800 text-slate-200 transition flex flex-col cursor-pointer"
+                  >
+                    <span className="font-bold text-cyan-300">🎟 Conference Badge</span>
+                    <span className="text-[11px] text-slate-400">Name tag, roles, and dynamic QR code</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => loadStarterTemplate('certificate')}
+                    className="w-full text-left px-3 py-2 text-xs hover:bg-slate-800 text-slate-200 transition flex flex-col cursor-pointer"
+                  >
+                    <span className="font-bold text-amber-300">🏆 Certificate of Achievement</span>
+                    <span className="text-[11px] text-slate-400">Award layout with centered typography</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => loadStarterTemplate('ticket')}
+                    className="w-full text-left px-3 py-2 text-xs hover:bg-slate-800 text-slate-200 transition flex flex-col cursor-pointer"
+                  >
+                    <span className="font-bold text-emerald-300">🎫 Event Ticket</span>
+                    <span className="text-[11px] text-slate-400">Admissions ticket with 1D Code 128 barcode</span>
+                  </button>
                 </div>
+              )}
+            </div>
 
-                <button
-                  type="button"
-                  onClick={() => loadStarterTemplate('badge')}
-                  className="w-full text-left px-3 py-2 text-xs hover:bg-slate-800 text-slate-200 transition flex flex-col cursor-pointer"
-                >
-                  <span className="font-bold text-cyan-300">🎟 Conference Badge</span>
-                  <span className="text-[11px] text-slate-400">Name tag, roles, and dynamic QR code</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => loadStarterTemplate('certificate')}
-                  className="w-full text-left px-3 py-2 text-xs hover:bg-slate-800 text-slate-200 transition flex flex-col cursor-pointer"
-                >
-                  <span className="font-bold text-amber-300">🏆 Certificate of Achievement</span>
-                  <span className="text-[11px] text-slate-400">Award layout with centered typography</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => loadStarterTemplate('ticket')}
-                  className="w-full text-left px-3 py-2 text-xs hover:bg-slate-800 text-slate-200 transition flex flex-col cursor-pointer"
-                >
-                  <span className="font-bold text-emerald-300">🎫 Event Ticket</span>
-                  <span className="text-[11px] text-slate-400">Admissions ticket with 1D Code 128 barcode</span>
-                </button>
-              </div>
-            )}
+            <button
+              onClick={handleOpenExportModal}
+              disabled={isGenerating || !isReady}
+              className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xs rounded-lg shadow-md shadow-cyan-500/20 transition cursor-pointer flex items-center gap-2 disabled:opacity-50"
+            >
+              {isGenerating ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Exporting...</span>
+                </>
+              ) : (
+                <>
+                  <span>⚡</span>
+                  <span>Export</span>
+                </>
+              )}
+            </button>
           </div>
-
-          <button
-            onClick={handleOpenExportModal}
-            disabled={isGenerating || !isReady}
-            className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xs rounded-lg shadow-md shadow-cyan-500/20 transition cursor-pointer flex items-center gap-2 disabled:opacity-50"
-          >
-            {isGenerating ? (
-              <>
-                <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>Exporting...</span>
-              </>
-            ) : (
-              <>
-                <span>⚡</span>
-                <span>Export</span>
-              </>
-            )}
-          </button>
-        </div>
-      </header>
-
+        </header>
       </div>
 
       {/* 2. THREE-PANE MAIN WORKBENCH */}
@@ -2787,11 +2771,11 @@ export default function Home() {
                     hidden
                     accept="application/pdf,image/png,image/jpeg,image/webp"
                     onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      await handleTemplateUploadFile(file);
-                    }
-                  }}
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        await handleTemplateUploadFile(file);
+                      }
+                    }}
                   />
                 </label>
               </div>
@@ -2805,30 +2789,30 @@ export default function Home() {
                 height: `${canvasHeight}px`,
                 position: 'relative',
                 margin: 'auto',
-                  backgroundColor: '#ffffff',
-                  boxShadow: '0 20px 40px -15px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.08)',
+                backgroundColor: '#ffffff',
+                boxShadow: '0 20px 40px -15px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.08)',
               }}
-              >
+            >
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  width: `${canvasWidth}px`,
+                  height: `${canvasHeight}px`,
+                }}
+                ref={containerRef}
+              />
+              {showGridOverlay && gridSnap > 0 && (
                 <div
+                  className="pointer-events-none absolute inset-0 z-50 mix-blend-difference opacity-40"
                   style={{
-                    position: 'absolute',
-                    inset: 0,
-                    width: `${canvasWidth}px`,
-                    height: `${canvasHeight}px`,
+                    backgroundImage: `radial-gradient(circle, #ffffff 1.5px, transparent 1.5px)`,
+                    backgroundSize: `${gridSnap}px ${gridSnap}px`,
+                    backgroundPosition: '0 0'
                   }}
-                  ref={containerRef}
                 />
-                {showGridOverlay && gridSnap > 0 && (
-                  <div
-                    className="pointer-events-none absolute inset-0 z-50 mix-blend-difference opacity-40"
-                    style={{
-                      backgroundImage: `radial-gradient(circle, #ffffff 1.5px, transparent 1.5px)`,
-                      backgroundSize: `${gridSnap}px ${gridSnap}px`,
-                      backgroundPosition: '0 0'
-                    }}
-                  />
-                )}
-              </div>
+              )}
+            </div>
             </div>
           </div>
 
@@ -3368,7 +3352,7 @@ export default function Home() {
       </div>
 
       {/* 3. MODALS & OVERLAYS */}
-            {/* Scope Export Modal */}
+      {/* Scope Export Modal */}
       {showScopeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4">
           <div className="bg-slate-900 rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-slate-800 animate-in fade-in zoom-in-95 duration-150">
@@ -3725,4 +3709,3 @@ export default function Home() {
     </div>
   );
 }
-
