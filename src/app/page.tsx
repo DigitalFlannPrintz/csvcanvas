@@ -1,8 +1,8 @@
 'use client';
+
 import { useEffect, useRef, useState, useMemo } from 'react';
 import Papa from 'papaparse';
 import bwipjs from 'bwip-js';
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import {
   generateVDP,
   CanvasTextData,
@@ -82,16 +82,10 @@ const SYSTEM_FONT_GROUPS = [
 
 const BASE_CANVAS_WIDTH = 850;
 const ZOOM_LEVELS = [
-  { label: "50%", scale: 0.5 },
-  { label: "100%", scale: 1.0 },
-  { label: "150%", scale: 1.5 },
-  { label: "200%", scale: 2.0 },
-];
-
-const SNAP_OPTIONS = [
-  { label: 'Snap: Off', value: 0 },
-  { label: 'Snap: 10px', value: 10 },
-  { label: 'Snap: 20px', value: 20 },
+  { label: '50%', scale: 0.5 },
+  { label: '100%', scale: 1.0 },
+  { label: '150%', scale: 1.5 },
+  { label: '200%', scale: 2.0 },
 ];
 
 const RULER_SIZE = 28;
@@ -101,6 +95,12 @@ export default function Home() {
   const containerRef = useRef<HTMLDivElement>(null);
   const fabricCanvasRef = useRef<any>(null);
   const fabricModuleRef = useRef<any>(null);
+
+  const [isHandToolActive, setIsHandToolActive] = useState<boolean>(false);
+  const isHandToolActiveRef = useRef<boolean>(false);
+  const isSpacePressedRef = useRef<boolean>(false);
+  const isPanningRef = useRef<boolean>(false);
+  const panStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const [totalPages, setTotalPages] = useState<number>(1);
   const [currentPageIndex, setCurrentPageIndex] = useState<number>(0);
@@ -115,7 +115,7 @@ export default function Home() {
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
   const [selectedTag, setSelectedTag] = useState<any>(null);
-  const [selectedBarcodeColor, setSelectedBarcodeColor] = useState<string>("#000000");
+  const [selectedBarcodeColor, setSelectedBarcodeColor] = useState<string>('#000000');
   const [selectedImage, setSelectedImage] = useState<any>(null);
   const [selectedBarcode, setSelectedBarcode] = useState<any>(null);
   const [selectedImageMask, setSelectedImageMask] = useState<'circle' | 'rounded' | 'square' | 'none'>('none');
@@ -166,7 +166,6 @@ export default function Home() {
   const [csvData, setCsvData] = useState<any[]>([]);
   const csvDataRef = useRef<any[]>([]);
   const [pdfBytes, setPdfBytes] = useState<ArrayBuffer | null>(null);
-  const [isDraggingPdf, setIsDraggingPdf] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isReady, setIsReady] = useState(false);
 
@@ -181,12 +180,10 @@ export default function Home() {
   const [progressCount, setProgressCount] = useState<{ current: number; total: number }>({ current: 0, total: 0 });
 
   const [selectedBarcodeCol, setSelectedBarcodeCol] = useState<string>('');
-
   const [showSaveModal, setShowSaveModal] = useState<boolean>(false);
   const [exportFilename, setExportFilename] = useState<string>('CSVCanvas_Print_Ready');
   const pendingBlobRef = useRef<Blob | null>(null);
 
-  // Template dropdown toggle
   const [showTemplateDropdown, setShowTemplateDropdown] = useState<boolean>(false);
 
   const serializeFabricObject = (obj: any) => {
@@ -274,10 +271,7 @@ export default function Home() {
     setTransformAngle(Math.round(obj.angle || 0) % 360);
   };
 
-  const handleTransformChange = (
-    field: 'x' | 'y' | 'w' | 'h' | 'angle',
-    val: number
-  ) => {
+  const handleTransformChange = (field: 'x' | 'y' | 'w' | 'h' | 'angle', val: number) => {
     const canvas = fabricCanvasRef.current;
     const obj = canvas?.getActiveObject();
     if (!canvas || !obj) return;
@@ -343,7 +337,7 @@ export default function Home() {
     syncTransformValues(obj);
     if (obj && obj.isBarcode) {
       setSelectedBarcode(obj);
-      setSelectedBarcodeColor(obj.barcodeColor || "#000000");
+      setSelectedBarcodeColor(obj.barcodeColor || '#000000');
     } else {
       setSelectedBarcode(null);
     }
@@ -425,14 +419,14 @@ export default function Home() {
 
   const handleResetProject = () => {
     const confirmed = window.confirm(
-      "Start over? This will remove the current template and all canvas elements. Your uploaded CSV data will remain loaded."
+      'Start over? This will remove the current template and all canvas elements. Your uploaded CSV data will remain loaded.'
     );
     if (!confirmed) return;
 
     const canvas = fabricCanvasRef.current;
     if (canvas) {
       canvas.clear();
-      canvas.backgroundColor = "#ffffff";
+      canvas.backgroundColor = '#ffffff';
       canvas.renderAll();
     }
 
@@ -649,12 +643,10 @@ export default function Home() {
         const side = Math.min(origW, origH);
         offscreen.width = side;
         offscreen.height = side;
-
         ctx.beginPath();
         ctx.arc(side / 2, side / 2, side / 2, 0, Math.PI * 2, true);
         ctx.closePath();
         ctx.clip();
-
         const sx = (origW - side) / 2;
         const sy = (origH - side) / 2;
         ctx.drawImage(tempImg, sx, sy, side, side, 0, 0, side, side);
@@ -662,7 +654,6 @@ export default function Home() {
         offscreen.width = origW;
         offscreen.height = origH;
         const radius = Math.min(origW, origH) * 0.18;
-
         ctx.beginPath();
         ctx.moveTo(radius, 0);
         ctx.lineTo(origW - radius, 0);
@@ -675,13 +666,11 @@ export default function Home() {
         ctx.quadraticCurveTo(0, 0, radius, 0);
         ctx.closePath();
         ctx.clip();
-
         ctx.drawImage(tempImg, 0, 0);
       } else if (maskType === 'square') {
         const side = Math.min(origW, origH);
         offscreen.width = side;
         offscreen.height = side;
-
         const sx = (origW - side) / 2;
         const sy = (origH - side) / 2;
         ctx.drawImage(tempImg, sx, sy, side, side, 0, 0, side, side);
@@ -709,26 +698,26 @@ export default function Home() {
     tempImg.src = sourceDataUrl;
   };
 
-  const createBarcodeDataUrl = async (bcid: string, text: string, color: string = "#000000"): Promise<string> => {
+  const createBarcodeDataUrl = async (bcid: string, text: string, color: string = '#000000'): Promise<string> => {
     return new Promise((resolve) => {
-      const offscreen = document.createElement("canvas");
+      const offscreen = document.createElement('canvas');
       try {
-        const cleanHex = color.replace("#", "").trim() || "000000";
-        let safeText = String(text ?? "").trim();
-        if (bcid === "code39") {
-          safeText = safeText.toUpperCase().replace(/[^0-9A-Z\-. $/+%]/g, "");
-          if (!safeText) safeText = "SAMPLE";
-        } else if (bcid === "code128") {
-          safeText = safeText.replace(/[^\x00-\x7F]/g, "");
-          if (!safeText) safeText = "SAMPLE";
+        const cleanHex = color.replace('#', '').trim() || '000000';
+        let safeText = String(text ?? '').trim();
+        if (bcid === 'code39') {
+          safeText = safeText.toUpperCase().replace(/[^0-9A-Z\-. $/+%]/g, '');
+          if (!safeText) safeText = 'SAMPLE';
+        } else if (bcid === 'code128') {
+          safeText = safeText.replace(/[^\x00-\x7F]/g, '');
+          if (!safeText) safeText = 'SAMPLE';
         }
 
         const opts: Record<string, any> = {
           bcid,
-          text: safeText || "SAMPLE",
+          text: safeText || 'SAMPLE',
           scale: 3,
-          includetext: bcid !== "qrcode",
-          textxalign: "center",
+          includetext: bcid !== 'qrcode',
+          textxalign: 'center',
           barcolor: cleanHex,
           textcolor: cleanHex,
         };
@@ -755,8 +744,8 @@ export default function Home() {
     active.barcodeColor = newColor;
 
     const val = isPreviewModeRef.current
-      ? (csvDataRef.current[previewRowIndexRef.current] || {})[active.barcodeField] || "SAMPLE"
-      : active.rawTemplateTag || active.barcodeField || "SAMPLE";
+      ? (csvDataRef.current[previewRowIndexRef.current] || {})[active.barcodeField] || 'SAMPLE'
+      : active.rawTemplateTag || active.barcodeField || 'SAMPLE';
 
     const newUrl = await createBarcodeDataUrl(active.barcodeType, String(val), newColor);
     if (newUrl) {
@@ -775,10 +764,10 @@ export default function Home() {
 
     active.barcodeType = newType;
     const val = isPreviewModeRef.current
-      ? (csvDataRef.current[previewRowIndexRef.current] || {})[active.barcodeField] || "SAMPLE"
-      : active.rawTemplateTag || active.barcodeField || "SAMPLE";
+      ? (csvDataRef.current[previewRowIndexRef.current] || {})[active.barcodeField] || 'SAMPLE'
+      : active.rawTemplateTag || active.barcodeField || 'SAMPLE';
 
-    const newUrl = await createBarcodeDataUrl(newType, String(val), active.barcodeColor || "#000000");
+    const newUrl = await createBarcodeDataUrl(newType, String(val), active.barcodeColor || '#000000');
     if (newUrl) {
       active.setSrc(newUrl, () => {
         canvas.renderAll();
@@ -808,13 +797,13 @@ export default function Home() {
         left: (() => {
           const cvs = fabricCanvasRef.current;
           const rect = cvs?.lowerCanvasEl?.getBoundingClientRect();
-          const center = rect ? (window.innerWidth / 2) - rect.left : 100;
+          const center = rect ? window.innerWidth / 2 - rect.left : 100;
           return Math.round((center + (Math.random() * 40 - 20)) / snap) * snap;
         })(),
         top: (() => {
           const cvs = fabricCanvasRef.current;
           const rect = cvs?.lowerCanvasEl?.getBoundingClientRect();
-          const center = rect ? (window.innerHeight / 2) - rect.top : 100;
+          const center = rect ? window.innerHeight / 2 - rect.top : 100;
           return Math.round((center + (Math.random() * 40 - 20)) / snap) * snap;
         })(),
         scaleX: scale,
@@ -827,7 +816,7 @@ export default function Home() {
         isBarcode: true,
         barcodeType,
         barcodeField: headerName,
-        barcodeColor: "#000000",
+        barcodeColor: '#000000',
         rawTemplateTag: `{{${headerName}}}`,
         pageIndex: currentPageIndexRef.current,
       });
@@ -847,16 +836,16 @@ export default function Home() {
     const data = csvDataRef.current;
     const currentRow = data && data[rowIndex] ? data[rowIndex] : {};
 
-    canvas.getObjects("textbox").forEach((obj: any) => {
+    canvas.getObjects('textbox').forEach((obj: any) => {
       if (obj.isGuideLine) return;
       if (!obj.rawTemplateTag) {
         obj.rawTemplateTag = obj.text;
       }
 
       let displayText = obj.rawTemplateTag;
-      let effectiveColor = obj.tagColor || obj.fill || "#0f172a";
-      let effectiveBold = obj.fontWeight === "bold" || obj.fontWeight === 700 || obj.fontWeight === "700";
-      let effectiveItalic = obj.fontStyle === "italic";
+      let effectiveColor = obj.tagColor || obj.fill || '#0f172a';
+      let effectiveBold = obj.fontWeight === 'bold' || obj.fontWeight === 700 || obj.fontWeight === '700';
+      let effectiveItalic = obj.fontStyle === 'italic';
 
       if (enablePreview) {
         displayText = obj.rawTemplateTag.replace(/\{\{\s*(\w+)\s*\}\}/g, (_: string, colName: string) => {
@@ -881,18 +870,20 @@ export default function Home() {
       obj.set({
         text: displayText,
         fill: effectiveColor,
-        fontWeight: effectiveBold ? "bold" : "normal",
-        fontStyle: effectiveItalic ? "italic" : "normal",
+        fontWeight: effectiveBold ? 'bold' : 'normal',
+        fontStyle: effectiveItalic ? 'italic' : 'normal',
       });
     });
 
     const barcodeObjs = canvas.getObjects().filter((obj: any) => obj.isBarcode);
     for (const bObj of barcodeObjs) {
       const val = enablePreview
-        ? (currentRow[bObj.barcodeField] !== undefined ? String(currentRow[bObj.barcodeField]) : bObj.barcodeField)
+        ? currentRow[bObj.barcodeField] !== undefined
+          ? String(currentRow[bObj.barcodeField])
+          : bObj.barcodeField
         : bObj.barcodeField;
 
-      const newUrl = await createBarcodeDataUrl(bObj.barcodeType, String(val), bObj.barcodeColor || "#000000");
+      const newUrl = await createBarcodeDataUrl(bObj.barcodeType, String(val), bObj.barcodeColor || '#000000');
       if (newUrl) {
         bObj.setSrc(newUrl, () => {
           canvas.renderAll();
@@ -915,26 +906,6 @@ export default function Home() {
     applyDataPreview(nextVal, previewRowIndexRef.current);
   };
 
-  const selectRecordDirectly = (rowIndex: number) => {
-    setPreviewRowIndex(rowIndex);
-    previewRowIndexRef.current = rowIndex;
-    if (!isPreviewModeRef.current) {
-      setIsPreviewMode(true);
-      isPreviewModeRef.current = true;
-    }
-    applyDataPreview(true, rowIndex);
-  };
-
-  const handleRowStep = (delta: number) => {
-    if (csvDataRef.current.length === 0) return;
-    const nextIdx = Math.max(0, Math.min(csvDataRef.current.length - 1, previewRowIndexRef.current + delta));
-    setPreviewRowIndex(nextIdx);
-    previewRowIndexRef.current = nextIdx;
-    if (isPreviewModeRef.current) {
-      applyDataPreview(true, nextIdx);
-    }
-  };
-
   const handleFontUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -951,7 +922,6 @@ export default function Home() {
 
       setCustomFontsList((prev) => [...prev, { label: `${fontName} (Uploaded)`, value: fontName }]);
       handleFontFamilyChange(fontName);
-
       alert(`Font "${fontName}" loaded successfully!`);
     } catch (err) {
       console.error(err);
@@ -1021,8 +991,8 @@ export default function Home() {
       activeObj.set({ isUppercase: nextUppercase });
 
       const baseText = isPreviewModeRef.current
-        ? (csvDataRef.current[previewRowIndexRef.current]?.[activeObj.rawTemplateTag?.replace(/{{|}}/g, '').trim()] || activeObj.rawTemplateTag)
-        : (activeObj.rawTemplateTag || activeObj.text);
+        ? csvDataRef.current[previewRowIndexRef.current]?.[activeObj.rawTemplateTag?.replace(/{{|}}/g, '').trim()] || activeObj.rawTemplateTag
+        : activeObj.rawTemplateTag || activeObj.text;
 
       activeObj.set({ text: nextUppercase ? baseText.toUpperCase() : baseText });
       setIsUppercase(nextUppercase);
@@ -1075,11 +1045,6 @@ export default function Home() {
       canvas.renderAll();
       saveState(canvas);
     }
-  };
-
-  const handleSnapOptionChange = (val: number) => {
-    setGridSnap(val);
-    gridSnapRef.current = val;
   };
 
   const handleAddRule = () => {
@@ -1248,38 +1213,6 @@ export default function Home() {
     });
   };
 
-  const switchPage = async (newPageIndex: number) => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas || !pdfDocProxyRef.current) return;
-
-    const currentObjs = canvas.getObjects().filter((obj: any) => !obj.isBackground);
-    pagesStorageRef.current[currentPageIndexRef.current] = currentObjs.map(serializeFabricObject);
-
-    canvas.clear();
-
-    setCurrentPageIndex(newPageIndex);
-    currentPageIndexRef.current = newPageIndex;
-
-    await renderPdfBackgroundAtWidth(pdfDocProxyRef.current, newPageIndex + 1, canvasWidth);
-
-    const targetObjs = pagesStorageRef.current[newPageIndex] || [];
-    if (targetObjs.length > 0) {
-      fabricModuleRef.current.util.enlivenObjects(targetObjs, (enlivened: any[]) => {
-        enlivened.forEach((obj: any) => canvas.add(obj));
-        canvas.renderAll();
-        saveState(canvas);
-      });
-    } else {
-      saveState(canvas);
-    }
-
-    setSelectedTag(null);
-    setSelectedImage(null);
-    setSelectedImageMask('none');
-    setHasSelection(false);
-    setGuideBounds(null);
-  };
-
   const handlePreviewResize = async (newWidth: number) => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
@@ -1340,47 +1273,28 @@ export default function Home() {
     }
   };
 
-  // BUILT-IN STARTER PACK GENERATOR & LOADER
-  const loadStarterTemplate = async (templateKey: "badge" | "certificate" | "ticket") => {
+  const loadStarterTemplate = async (templateKey: 'badge' | 'certificate' | 'ticket') => {
     setShowTemplateDropdown(false);
     const canvas = fabricCanvasRef.current;
     const fb = fabricModuleRef.current;
     const pdfjsLib = (window as any).pdfjsLib;
 
     if (!canvas || !fb || !pdfjsLib) {
-      alert("System initializing. Please try again in 1 second.");
+      alert('System initializing. Please try again in 1 second.');
       return;
     }
 
-    const templateConfig: Record<string, { pdfFile: string; textY: number; barcodeY: number; qrY: number }> = {
-      badge: {
-        pdfFile: "/samples/Badge_Template.pdf",
-        textY: 260,
-        barcodeY: 420,
-        qrY: 380,
-      },
-      certificate: {
-        pdfFile: "/samples/Certificate_Template.pdf",
-        textY: 320,
-        barcodeY: 480,
-        qrY: 460,
-      },
-      ticket: {
-        pdfFile: "/samples/Ticket_Template.pdf",
-        textY: 80,
-        barcodeY: 160,
-        qrY: 60,
-      },
+    const templateConfig: Record<string, { pdfFile: string }> = {
+      badge: { pdfFile: '/samples/Badge_Template.pdf' },
+      certificate: { pdfFile: '/samples/Certificate_Template.pdf' },
+      ticket: { pdfFile: '/samples/Ticket_Template.pdf' },
     };
 
     const cfg = templateConfig[templateKey];
 
     try {
-      // 1. Fetch real PDF template
       const pdfRes = await fetch(cfg.pdfFile);
-      if (!pdfRes.ok) {
-        throw new Error("Could not find " + cfg.pdfFile + " in public/samples/");
-      }
+      if (!pdfRes.ok) throw new Error('Could not find ' + cfg.pdfFile);
       const arrayBuffer = await pdfRes.arrayBuffer();
       setPdfBytes(arrayBuffer.slice(0));
 
@@ -1395,8 +1309,7 @@ export default function Home() {
 
       await renderPdfBackgroundAtWidth(loadedPdf, 1, canvasWidth);
 
-      // 2. Fetch standard CSV data
-      const csvRes = await fetch("/samples/sample_data.csv");
+      const csvRes = await fetch('/samples/sample_data.csv');
       const sampleCsv = await csvRes.text();
 
       Papa.parse(sampleCsv, {
@@ -1408,13 +1321,12 @@ export default function Home() {
           setPreviewRowIndex(0);
           previewRowIndexRef.current = 0;
           setTableCurrentPage(1);
-          setTableSearchQuery("");
+          setTableSearchQuery('');
 
-          const fields = results.meta.fields || ["FullName", "Barcode", "QR Code"];
+          const fields = results.meta.fields || ['FullName', 'Barcode', 'QR Code'];
           setCsvHeaders(fields);
-          setSelectedBarcodeCol("Barcode");
+          setSelectedBarcodeCol('Barcode');
 
-          // 3. Clear canvas of previous non-background objects
           const toRemove = canvas.getObjects().filter((obj: any) => !obj.isBackground);
           toRemove.forEach((obj: any) => canvas.remove(obj));
 
@@ -1427,8 +1339,37 @@ export default function Home() {
       });
     } catch (err) {
       console.error(err);
-      alert("Failed loading starter template. Please verify that public" + cfg.pdfFile + " exists.");
+      alert('Failed loading starter template.');
     }
+  };
+
+  const setHandToolState = (active: boolean) => {
+    const canvas = fabricCanvasRef.current;
+    setIsHandToolActive(active);
+    isHandToolActiveRef.current = active;
+    if (!canvas) return;
+
+    if (active) {
+      canvas.discardActiveObject();
+      canvas.selection = false;
+      canvas.defaultCursor = 'grab';
+      canvas.hoverCursor = 'grab';
+      canvas.forEachObject((obj: any) => {
+        obj.selectable = false;
+        obj.evented = false;
+      });
+    } else {
+      canvas.selection = true;
+      canvas.defaultCursor = 'default';
+      canvas.hoverCursor = 'move';
+      canvas.forEachObject((obj: any) => {
+        if (!obj.isGuideLine && !obj.isBackground) {
+          obj.selectable = true;
+          obj.evented = true;
+        }
+      });
+    }
+    canvas.renderAll();
   };
 
   useEffect(() => {
@@ -1520,13 +1461,41 @@ export default function Home() {
         c.on('object:rotating', () => {
           syncTransformValues(c.getActiveObject());
         });
-        c.on('object:scaling', updateSelectionBounds);
         c.on('object:added', record);
         c.on('object:removed', record);
 
         c.on('selection:created', (e: any) => syncToolbarWithActiveObject(e.selected?.[0]));
         c.on('selection:updated', (e: any) => syncToolbarWithActiveObject(e.selected?.[0]));
         c.on('selection:cleared', () => syncToolbarWithActiveObject(null));
+
+        c.on('mouse:down', (opt: any) => {
+          const evt = opt.e;
+          if (isHandToolActiveRef.current || isSpacePressedRef.current || evt.altKey) {
+            isPanningRef.current = true;
+            c.defaultCursor = 'grabbing';
+            panStartRef.current = { x: evt.clientX, y: evt.clientY };
+          }
+        });
+
+        c.on('mouse:move', (opt: any) => {
+          if (isPanningRef.current && viewportScrollContainerRef.current) {
+            const evt = opt.e;
+            const deltaX = panStartRef.current.x - evt.clientX;
+            const deltaY = panStartRef.current.y - evt.clientY;
+
+            viewportScrollContainerRef.current.scrollLeft += deltaX;
+            viewportScrollContainerRef.current.scrollTop += deltaY;
+
+            panStartRef.current = { x: evt.clientX, y: evt.clientY };
+          }
+        });
+
+        c.on('mouse:up', () => {
+          if (isPanningRef.current) {
+            isPanningRef.current = false;
+            c.defaultCursor = isHandToolActiveRef.current || isSpacePressedRef.current ? 'grab' : 'default';
+          }
+        });
       }
     });
 
@@ -1536,17 +1505,38 @@ export default function Home() {
 
       if (activeObj && activeObj.isEditing) return;
 
+      if ((e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      if (e.code === 'Space' && !e.repeat && !isSpacePressedRef.current) {
+        e.preventDefault();
+        isSpacePressedRef.current = true;
+        if (canvas && !isHandToolActiveRef.current) {
+          canvas.defaultCursor = 'grab';
+          canvas.hoverCursor = 'grab';
+          canvas.selection = false;
+        }
+        return;
+      }
+
+      if (!e.metaKey && !e.ctrlKey) {
+        if (e.key.toLowerCase() === 'h') {
+          e.preventDefault();
+          setHandToolState(true);
+          return;
+        }
+        if (e.key.toLowerCase() === 'v') {
+          e.preventDefault();
+          setHandToolState(false);
+          return;
+        }
+      }
+
       if (activeObj && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
         e.preventDefault();
-
         const snap = gridSnapRef.current;
-        let step = 1;
-
-        if (e.shiftKey) {
-          step = snap > 0 ? snap : 10;
-        } else if (snap > 0) {
-          step = snap;
-        }
+        let step = e.shiftKey ? (snap > 0 ? snap : 10) : snap > 0 ? snap : 1;
 
         let newLeft = activeObj.left;
         let newTop = activeObj.top;
@@ -1569,7 +1559,6 @@ export default function Home() {
         activeObj.setCoords();
         canvas.renderAll();
         saveState(canvas);
-
         const b = activeObj.getBoundingRect();
         setGuideBounds({ left: b.left, top: b.top, width: b.width, height: b.height });
         return;
@@ -1596,11 +1585,32 @@ export default function Home() {
       }
     };
 
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        isSpacePressedRef.current = false;
+        isPanningRef.current = false;
+        const canvas = fabricCanvasRef.current;
+        if (canvas) {
+          if (isHandToolActiveRef.current) {
+            canvas.defaultCursor = 'grab';
+            canvas.hoverCursor = 'grab';
+            canvas.selection = false;
+          } else {
+            canvas.defaultCursor = 'default';
+            canvas.hoverCursor = 'move';
+            canvas.selection = true;
+          }
+        }
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
 
     return () => {
       isMounted = false;
       window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
       if (fabricCanvasRef.current) {
         fabricCanvasRef.current.dispose();
         fabricCanvasRef.current = null;
@@ -1624,13 +1634,8 @@ export default function Home() {
 
         const imgEl = new Image();
         imgEl.onload = () => {
-          let w = imgEl.naturalWidth;
-          let h = imgEl.naturalHeight;
-
-          if (!w || !h) {
-            w = 850;
-            h = 1100;
-          }
+          let w = imgEl.naturalWidth || 850;
+          let h = imgEl.naturalHeight || 1100;
 
           setCanvasWidth(w);
           setCanvasHeight(h);
@@ -1651,9 +1656,7 @@ export default function Home() {
 
             canvas.setBackgroundImage(fabricImg, () => {
               canvas.renderAll();
-              if (typeof saveState === 'function') {
-                saveState(canvas);
-              }
+              saveState(canvas);
               file.arrayBuffer().then((buf) => {
                 setPdfBytes(buf);
               });
@@ -1688,7 +1691,7 @@ export default function Home() {
 
     if (!file || !canvas || !fb) return;
     if (!pdfjsLib) {
-      alert("PDF engine is initializing. Please try again in 2 seconds.");
+      alert('PDF engine is initializing. Please try again in 2 seconds.');
       return;
     }
 
@@ -1709,15 +1712,9 @@ export default function Home() {
       await renderPdfBackgroundAtWidth(pdf, 1, canvasWidth);
       setIsReady(true);
     } catch (err) {
-      console.error("Error loading PDF:", err);
-      alert("Failed to read PDF file.");
+      console.error('Error loading PDF:', err);
+      alert('Failed to read PDF file.');
     }
-  };
-
-  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) await processPdfFile(file);
-    e.target.value = "";
   };
 
   const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1737,53 +1734,35 @@ export default function Home() {
             setCsvHeaders(results.meta.fields);
             setSelectedBarcodeCol(results.meta.fields[0]);
           }
-        }
+        },
       });
     }
   };
 
-  const addFreeformText = (initialString: string = "Double-click to type...") => {
+  const addFreeformText = (initialString: string = 'Double-click to type...') => {
     const canvas = fabricCanvasRef.current;
     const fb = fabricModuleRef.current;
     if (!canvas || !fb) return;
 
     const snap = gridSnapRef.current || 1;
     const cvs = fabricCanvasRef.current;
-    const vpt = cvs.viewportTransform || [1, 0, 0, 1, 0, 0];
-    const zoom = cvs.getZoom() || 1;
-
-    const visibleCenterX = (-vpt[4] + (cvs.getWidth() / 2)) / zoom;
-    const visibleCenterY = (-vpt[5] + (cvs.getHeight() / 2)) / zoom;
-
-    const offset = (Math.random() * 40) - 20; 
-
-    const rawLeft = visibleCenterX + offset;
-    const rawTop = visibleCenterY + offset;
+    const rect = cvs?.lowerCanvasEl?.getBoundingClientRect();
+    const center = rect ? window.innerWidth / 2 - rect.left : 100;
 
     const textObj = new fb.Textbox(initialString, {
-      left: (() => {
-        const cvs = fabricCanvasRef.current;
-        const rect = cvs?.lowerCanvasEl?.getBoundingClientRect();
-        const center = rect ? (window.innerWidth / 2) - rect.left : rawLeft;
-        return Math.round((center + (Math.random() * 40 - 20)) / snap) * snap;
-      })(),
-      top: (() => {
-        const cvs = fabricCanvasRef.current;
-        const rect = cvs?.lowerCanvasEl?.getBoundingClientRect();
-        const center = rect ? (window.innerHeight / 2) - rect.top : rawTop;
-        return Math.round((center + (Math.random() * 40 - 20)) / snap) * snap;
-      })(),
+      left: Math.round((center + (Math.random() * 40 - 20)) / snap) * snap,
+      top: Math.round((200 + (Math.random() * 40 - 20)) / snap) * snap,
       width: 260,
       fontSize: fontSize || 22,
-      fill: textColor || "#0f172a",
-      fontWeight: isBold ? "bold" : "normal",
-      fontStyle: isItalic ? "italic" : "normal",
-      fontFamily: fontFamily || "Arial",
-      textAlign: textAlign || "left",
-      tagColor: textColor || "#0f172a",
-      backgroundColor: "transparent",
+      fill: textColor || '#0f172a',
+      fontWeight: isBold ? 'bold' : 'normal',
+      fontStyle: isItalic ? 'italic' : 'normal',
+      fontFamily: fontFamily || 'Arial',
+      textAlign: textAlign || 'left',
+      tagColor: textColor || '#0f172a',
+      backgroundColor: 'transparent',
       padding: 0,
-      cornerColor: "#38bdf8",
+      cornerColor: '#38bdf8',
       cornerSize: 10,
       transparentCorners: false,
       hasControls: true,
@@ -1795,7 +1774,7 @@ export default function Home() {
       rules: [],
     });
 
-    textObj.on("changed", () => {
+    textObj.on('changed', () => {
       textObj.rawTemplateTag = textObj.text;
       saveState(canvas);
     });
@@ -1815,7 +1794,6 @@ export default function Home() {
       const snap = gridSnapRef.current || 1;
       const rawLeft = 80 + Math.random() * 50;
       const rawTop = 80 + Math.random() * 50;
-
       const templateTag = `{{${headerName}}}`;
       let initialText = templateTag;
 
@@ -1827,18 +1805,8 @@ export default function Home() {
       }
 
       const text = new fb.Textbox(initialText, {
-        left: (() => {
-          const cvs = fabricCanvasRef.current;
-          const rect = cvs?.lowerCanvasEl?.getBoundingClientRect();
-          const center = rect ? (window.innerWidth / 2) - rect.left : rawLeft;
-          return Math.round((center + (Math.random() * 40 - 20)) / snap) * snap;
-        })(),
-        top: (() => {
-          const cvs = fabricCanvasRef.current;
-          const rect = cvs?.lowerCanvasEl?.getBoundingClientRect();
-          const center = rect ? (window.innerHeight / 2) - rect.top : rawTop;
-          return Math.round((center + (Math.random() * 40 - 20)) / snap) * snap;
-        })(),
+        left: Math.round(rawLeft / snap) * snap,
+        top: Math.round(rawTop / snap) * snap,
         width: 220,
         fontSize: 24,
         fill: '#0f172a',
@@ -1877,11 +1845,7 @@ export default function Home() {
     const q = tableSearchQuery.toLowerCase().trim();
     return csvData
       .map((row, originalIndex) => ({ row, originalIndex }))
-      .filter(({ row }) => {
-        return Object.values(row).some((val) =>
-          String(val || '').toLowerCase().includes(q)
-        );
-      });
+      .filter(({ row }) => Object.values(row).some((val) => String(val || '').toLowerCase().includes(q)));
   }, [csvData, tableSearchQuery]);
 
   const totalTablePages = Math.max(1, Math.ceil(filteredIndexedRows.length / ROWS_PER_TABLE_PAGE));
@@ -1991,18 +1955,6 @@ export default function Home() {
         }
       }
 
-      if (currentPageIndexRef.current !== undefined) {
-        currentObjs.forEach((cObj: any) => {
-          if (cObj.isStaticImage) {
-            const src = cObj.imageDataUrl || (cObj.getElement && cObj.getElement()?.src) || cObj.toDataURL?.();
-            const existing = allStaticImages.find((img) => img.pageIndex === currentPageIndexRef.current && img.x === cObj.left && img.y === cObj.top);
-            if (existing && src) {
-              existing.dataUrl = src;
-            }
-          }
-        });
-      }
-
       const finalPdfBytes = await generateVDP(
         pdfBytes.slice(0),
         targetRows,
@@ -2071,21 +2023,15 @@ export default function Home() {
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-950 text-slate-100 selection:bg-cyan-500 selection:text-white">
       {/* 1. TOP GLOBAL APP HEADER */}
       <div className="shrink-0 z-30">
-        {/* Sleek Top Navigation Bar with Starter Templates Dropdown */}
-        <header className="w-full border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-30 px-6 py-3 flex items-center justify-between shadow-xs mb-6">
-          <div className="flex items-center gap-4">
-          <img
-            src="/CSVCanvas_SiteLogo.svg"
-            alt="CSVCanvas Logo"
-            className="h-7 w-auto" 
-          />
-          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 font-mono shrink-0">
-            VDP STUDIO
-          </span>
-        </div>
+        <header className="w-full border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-30 px-6 py-1 flex items-center justify-between shadow-xs mb-6">
+          <div className="flex items-center gap-3">
+            <img src="/CSVCanvas_SiteLogo.svg" alt="CSVCanvas Logo" className="h-7 w-auto" />
+            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 font-mono shrink-0">
+              VDP STUDIO
+            </span>
+          </div>
 
           <div className="flex items-center gap-3">
-            {/* STARTER PACK TEMPLATES DROPDOWN */}
             <div className="relative">
               <button
                 type="button"
@@ -2158,7 +2104,6 @@ export default function Home() {
 
       {/* 2. THREE-PANE MAIN WORKBENCH */}
       <div className="flex flex-1 min-h-0 w-full overflow-hidden">
-        
         {/* LEFT PANEL: Ingestion, CSV Chips & Elements (w-80) */}
         <aside className="w-80 shrink-0 border-r border-slate-800/80 bg-slate-900/40 flex flex-col justify-between overflow-y-auto p-3.5 gap-4">
           <div className="flex flex-col gap-3.5">
@@ -2169,7 +2114,6 @@ export default function Home() {
             {/* CARD 1: DOCUMENT & DATA SOURCES */}
             <div className="p-3 bg-slate-900/80 border border-slate-800 rounded-xl flex flex-col gap-2.5">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">File Sources</span>
-              
               <div className="flex flex-col gap-2">
                 <label className="w-full py-2 px-3 bg-slate-950 hover:bg-slate-850 text-slate-200 border border-slate-800 hover:border-cyan-500/50 font-semibold text-xs rounded-lg transition cursor-pointer flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -2181,12 +2125,15 @@ export default function Home() {
                   ) : (
                     <span className="text-[10px] text-slate-500 font-medium">Browse...</span>
                   )}
-                  <input type="file" hidden accept="application/pdf,image/png,image/jpeg,image/webp" onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      await handleTemplateUploadFile(file);
-                    }
-                  }} />
+                  <input
+                    type="file"
+                    hidden
+                    accept="application/pdf,image/png,image/jpeg,image/webp"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (file) await handleTemplateUploadFile(file);
+                    }}
+                  />
                 </label>
 
                 <label className="w-full py-2 px-3 bg-slate-950 hover:bg-slate-850 text-slate-200 border border-slate-800 hover:border-emerald-500/50 font-semibold text-xs rounded-lg transition cursor-pointer flex items-center justify-between">
@@ -2210,18 +2157,14 @@ export default function Home() {
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  onClick={() => addFreeformText("Double-click to edit text...")}
-                  className="py-2 px-2.5 bg-slate-950 hover:bg-slate-800 text-slate-200 border border-slate-800 hover:border-cyan-500/50 font-semibold text-xs rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-95"
-                  title="Add editable text field"
+                  onClick={() => addFreeformText('Double-click to edit text...')}
+                  className="py-2 px-2.5 bg-slate-950 hover:bg-slate-850 text-slate-200 border border-slate-800 hover:border-cyan-500/50 font-semibold text-xs rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-95"
                 >
                   <span className="text-cyan-400 font-bold text-xs">T</span>
                   <span>+ Text Box</span>
                 </button>
 
-                <label
-                  className="py-2 px-2.5 bg-slate-950 hover:bg-slate-800 text-slate-200 border border-slate-800 hover:border-sky-500/50 font-semibold text-xs rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-95"
-                  title="Upload static image"
-                >
+                <label className="py-2 px-2.5 bg-slate-950 hover:bg-slate-800 text-slate-200 border border-slate-800 hover:border-sky-500/50 font-semibold text-xs rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-95">
                   <span>🖼</span>
                   <span>+ Image</span>
                   <input type="file" hidden accept="image/*" onChange={handleStaticImageUpload} />
@@ -2237,7 +2180,6 @@ export default function Home() {
                   <span className="text-[10px] text-cyan-400 font-semibold">Page {currentPageIndex + 1}</span>
                 </div>
 
-                {/* Column Chips */}
                 <div className="flex flex-wrap gap-1.5 pr-1">
                   {csvHeaders.map((header) => (
                     <button
@@ -2245,15 +2187,13 @@ export default function Home() {
                       type="button"
                       onClick={() => addTagToCanvas(header)}
                       className="px-2 py-1 text-[11px] bg-slate-950 hover:bg-slate-800 text-cyan-300 font-semibold border border-slate-800 hover:border-cyan-500/50 rounded-md transition cursor-pointer flex items-center gap-1"
-                      title={`Insert ${header} onto canvas`}
                     >
                       <span className="text-cyan-400 font-bold">+</span>
-                      <span>{"{{" + header + "}}"}</span>
+                      <span>{`{{${header}}}`}</span>
                     </button>
                   ))}
                 </div>
 
-                {/* Barcode / QR Placement */}
                 <div className="pt-2 border-t border-slate-800 flex flex-col gap-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Generate Code:</span>
@@ -2273,7 +2213,6 @@ export default function Home() {
                       type="button"
                       onClick={() => addBarcodeToCanvas(selectedBarcodeCol || csvHeaders[0], 'qrcode')}
                       className="py-1 px-1.5 text-[11px] font-bold bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/80 rounded-md transition cursor-pointer text-center"
-                      title="Insert QR Code"
                     >
                       + QR
                     </button>
@@ -2281,7 +2220,6 @@ export default function Home() {
                       type="button"
                       onClick={() => addBarcodeToCanvas(selectedBarcodeCol || csvHeaders[0], 'code128')}
                       className="py-1 px-1.5 text-[11px] font-bold bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/80 rounded-md transition cursor-pointer text-center"
-                      title="Insert Code 128"
                     >
                       + Code 128
                     </button>
@@ -2289,7 +2227,6 @@ export default function Home() {
                       type="button"
                       onClick={() => addBarcodeToCanvas(selectedBarcodeCol || csvHeaders[0], 'code39')}
                       className="py-1 px-1.5 text-[11px] font-bold bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/80 rounded-md transition cursor-pointer text-center"
-                      title="Insert Code 39"
                     >
                       + Code 39
                     </button>
@@ -2303,9 +2240,8 @@ export default function Home() {
               </div>
             )}
 
-            {/* CARD 4: DATASET PREVIEW TRIGGER */}
             {csvData.length > 0 && (
-              <div 
+              <div
                 onClick={() => setIsTableExpanded(!isTableExpanded)}
                 className="p-2.5 bg-slate-900/80 hover:bg-slate-850 border border-slate-800 rounded-xl flex items-center justify-between cursor-pointer select-none transition"
               >
@@ -2323,21 +2259,16 @@ export default function Home() {
             )}
           </div>
 
-          {/* BOTTOM PRESETS */}
           <div className="pt-2 border-t border-slate-800/80">
             <div className="grid grid-cols-2 gap-1.5">
               <button
                 type="button"
                 onClick={handleSaveTemplatePreset}
                 className="py-1 px-2 bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800 text-[11px] font-medium rounded-lg transition cursor-pointer flex items-center justify-center gap-1 hover:text-white"
-                title="Save template layout"
               >
                 <span>💾</span> Save Preset
               </button>
-              <label
-                className="py-1 px-2 bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800 text-[11px] font-medium rounded-lg transition cursor-pointer flex items-center justify-center gap-1 hover:text-white"
-                title="Load template layout"
-              >
+              <label className="py-1 px-2 bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800 text-[11px] font-medium rounded-lg transition cursor-pointer flex items-center justify-center gap-1 hover:text-white">
                 <span>📂</span> Load Preset
                 <input type="file" hidden accept=".json" onChange={handleLoadTemplatePreset} />
               </label>
@@ -2347,11 +2278,39 @@ export default function Home() {
 
         {/* CENTER STAGE: Canvas Viewport */}
         <main className="flex-1 flex flex-col min-w-0 bg-slate-950 overflow-hidden relative">
-          {/* Top Control Bar: Zoom, Snap, Guides */}
           <div className="shrink-0 min-h-[44px] py-1.5 border-b border-slate-800 bg-slate-900/60 px-3 flex flex-wrap items-center justify-between gap-3 select-none z-10">
-            {/* Left: Viewport Controls (Zoom, Guides, Grid) */}
             <div className="flex flex-wrap items-center gap-2">
-              {/* Zoom Controls */}
+              <div className="flex items-center bg-slate-950 border border-slate-800 rounded-lg p-0.5 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setHandToolState(false)}
+                  className={`px-2.5 py-1 text-[11px] font-semibold rounded transition cursor-pointer flex items-center gap-1.5 ${
+                    !isHandToolActive
+                      ? 'bg-cyan-500 text-slate-950 font-bold shadow-xs'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-850'
+                  }`}
+                  title="Select Tool (V)"
+                >
+                  <span>↖</span>
+                  <span>Select</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHandToolState(true)}
+                  className={`px-2.5 py-1 text-[11px] font-semibold rounded transition cursor-pointer flex items-center gap-1.5 ${
+                    isHandToolActive
+                      ? 'bg-cyan-500 text-slate-950 font-bold shadow-xs'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-850'
+                  }`}
+                  title="Hand / Pan Tool (H or hold Spacebar)"
+                >
+                  <span>✋</span>
+                  <span>Hand</span>
+                </button>
+              </div>
+
+              <div className="h-4 w-px bg-slate-800 mx-0.5" />
+
               <div className="flex items-center bg-slate-950 border border-slate-800 rounded-lg p-0.5 text-xs">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2 select-none">
                   Zoom
@@ -2378,7 +2337,6 @@ export default function Home() {
 
               <div className="h-4 w-px bg-slate-800 mx-0.5" />
 
-              {/* Guides Controls */}
               <div className="flex items-center bg-slate-950 border border-slate-800 rounded-lg p-0.5 text-xs">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2 select-none">
                   Guides
@@ -2387,7 +2345,6 @@ export default function Home() {
                   type="button"
                   onClick={() => addGuideLine('horizontal')}
                   className="px-2 py-1 text-[11px] font-semibold text-cyan-300 hover:bg-slate-850 hover:text-cyan-200 rounded transition cursor-pointer"
-                  title="Add horizontal guideline"
                 >
                   +H
                 </button>
@@ -2395,7 +2352,6 @@ export default function Home() {
                   type="button"
                   onClick={() => addGuideLine('vertical')}
                   className="px-2 py-1 text-[11px] font-semibold text-cyan-300 hover:bg-slate-850 hover:text-cyan-200 rounded transition cursor-pointer"
-                  title="Add vertical guideline"
                 >
                   +V
                 </button>
@@ -2404,7 +2360,6 @@ export default function Home() {
                   type="button"
                   onClick={clearAllGuides}
                   className="px-2 py-1 text-[10px] font-medium text-slate-400 hover:text-rose-400 hover:bg-slate-850 rounded transition cursor-pointer"
-                  title="Clear all guidelines"
                 >
                   Clear
                 </button>
@@ -2412,7 +2367,6 @@ export default function Home() {
 
               <div className="h-4 w-px bg-slate-800 mx-0.5" />
 
-              {/* Grid Snap Controls */}
               <div className="flex items-center bg-slate-950 border border-slate-800 rounded-lg p-0.5 text-xs">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2 select-none">
                   Grid
@@ -2465,8 +2419,7 @@ export default function Home() {
                   onClick={() => setShowGridOverlay(!showGridOverlay)}
                   disabled={gridSnap === 0}
                   className={`px-2 py-1 text-[11px] font-semibold rounded transition flex items-center gap-1 ${
-                    gridSnap === 0 ? 'opacity-40 cursor-not-allowed text-slate-600' : 
-                    showGridOverlay ? 'text-slate-200 bg-slate-850' : 'text-slate-500 hover:text-slate-300'
+                    gridSnap === 0 ? 'opacity-40 cursor-not-allowed text-slate-600' : showGridOverlay ? 'text-slate-200 bg-slate-850' : 'text-slate-500 hover:text-slate-300'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full ${showGridOverlay && gridSnap > 0 ? 'bg-cyan-400' : 'bg-slate-600'}`} />
@@ -2475,18 +2428,14 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Live Data Preview Controls */}
             {csvData.length > 0 && (
               <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-lg p-0.5 text-xs">
                 <button
                   type="button"
                   onClick={togglePreviewMode}
                   className={`px-2.5 py-1 text-[11px] font-bold rounded transition flex items-center gap-1.5 ${
-                    isPreviewMode
-                      ? 'bg-emerald-500 text-slate-950 shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                    isPreviewMode ? 'bg-emerald-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
                   }`}
-                  title="Toggle live variable-data evaluation on canvas"
                 >
                   <span className={`w-1.5 h-1.5 rounded-full ${isPreviewMode ? 'bg-slate-950 animate-pulse' : 'bg-slate-500'}`} />
                   Preview
@@ -2506,7 +2455,6 @@ export default function Home() {
                       className={`px-1.5 py-0.5 text-[10px] font-bold rounded ${
                         previewRowIndex <= 0 ? 'text-slate-600 cursor-not-allowed' : 'text-slate-300 hover:bg-slate-850 hover:text-white'
                       }`}
-                      title="Previous record"
                     >
                       ◀
                     </button>
@@ -2525,7 +2473,6 @@ export default function Home() {
                       className={`px-1.5 py-0.5 text-[10px] font-bold rounded ${
                         previewRowIndex >= csvData.length - 1 ? 'text-slate-600 cursor-not-allowed' : 'text-slate-300 hover:bg-slate-850 hover:text-white'
                       }`}
-                      title="Next record"
                     >
                       ▶
                     </button>
@@ -2534,7 +2481,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* Right: History, Delete, Reset */}
             <div className="flex flex-wrap items-center gap-2">
               <div className="flex items-center bg-slate-950 border border-slate-800 rounded-lg p-0.5 text-xs">
                 <button
@@ -2542,11 +2488,8 @@ export default function Home() {
                   onClick={handleUndo}
                   disabled={!canUndo}
                   className={`px-2.5 py-1 text-[11px] font-semibold rounded transition flex items-center gap-1.5 ${
-                    canUndo
-                      ? 'text-slate-200 hover:bg-slate-850 hover:text-white cursor-pointer'
-                      : 'text-slate-600 opacity-40 cursor-not-allowed'
+                    canUndo ? 'text-slate-200 hover:bg-slate-850 hover:text-white cursor-pointer' : 'text-slate-600 opacity-40 cursor-not-allowed'
                   }`}
-                  title="Undo (⌘Z)"
                 >
                   <span>↩</span> Undo
                 </button>
@@ -2556,11 +2499,8 @@ export default function Home() {
                   onClick={handleRedo}
                   disabled={!canRedo}
                   className={`px-2.5 py-1 text-[11px] font-semibold rounded transition flex items-center gap-1.5 ${
-                    canRedo
-                      ? 'text-slate-200 hover:bg-slate-850 hover:text-white cursor-pointer'
-                      : 'text-slate-600 opacity-40 cursor-not-allowed'
+                    canRedo ? 'text-slate-200 hover:bg-slate-850 hover:text-white cursor-pointer' : 'text-slate-600 opacity-40 cursor-not-allowed'
                   }`}
-                  title="Redo (⇧⌘Z)"
                 >
                   Redo <span>↪</span>
                 </button>
@@ -2571,11 +2511,8 @@ export default function Home() {
                 onClick={handleDeleteSelected}
                 disabled={!hasSelection}
                 className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition flex items-center gap-1 ${
-                  hasSelection
-                    ? 'bg-rose-950/50 hover:bg-rose-900/60 text-rose-300 border-rose-800/80 cursor-pointer shadow-xs'
-                    : 'bg-slate-950 text-slate-600 border-slate-800/50 opacity-40 cursor-not-allowed'
+                  hasSelection ? 'bg-rose-950/50 hover:bg-rose-900/60 text-rose-300 border-rose-800/80 cursor-pointer shadow-xs' : 'bg-slate-950 text-slate-600 border-slate-800/50 opacity-40 cursor-not-allowed'
                 }`}
-                title="Delete selected item or guide"
               >
                 ✕ Delete
               </button>
@@ -2585,7 +2522,6 @@ export default function Home() {
                   type="button"
                   onClick={handleResetProject}
                   className="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-semibold rounded-lg transition cursor-pointer flex items-center gap-1 active:scale-95 shadow-xs"
-                  title="Reset PDF background and canvas elements"
                 >
                   Reset
                 </button>
@@ -2595,7 +2531,6 @@ export default function Home() {
 
           {/* Centered Scrollable Canvas Artboard with Viewport Perimeter Rulers */}
           <div className="relative flex-1 overflow-hidden bg-slate-950 flex flex-col">
-            {/* Top-Left Corner Block */}
             <div
               className="absolute top-0 left-0 z-20 bg-slate-900 border-r border-b border-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-500 font-mono select-none"
               style={{ width: `${RULER_SIZE}px`, height: `${RULER_SIZE}px` }}
@@ -2603,7 +2538,6 @@ export default function Home() {
               px
             </div>
 
-            {/* Horizontal Perimeter Ruler (Top) */}
             <div
               className="absolute top-0 right-0 z-10 bg-[#090d16] border-b border-slate-800 overflow-hidden pointer-events-none"
               style={{ left: `${RULER_SIZE}px`, height: `${RULER_SIZE}px` }}
@@ -2657,7 +2591,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Vertical Perimeter Ruler (Left) */}
             <div
               className="absolute left-0 bottom-0 z-10 bg-[#090d16] border-r border-slate-800 overflow-hidden pointer-events-none"
               style={{ top: `${RULER_SIZE}px`, width: `${RULER_SIZE}px` }}
@@ -2673,10 +2606,10 @@ export default function Home() {
                 <svg width={RULER_SIZE} height={canvasHeight} style={{ display: 'block' }}>
                   <defs>
                     <pattern id="ruler-grid-y-10" width={RULER_SIZE} height="10" patternUnits="userSpaceOnUse">
-                      <line x1={RULER_SIZE - 6} y1="0" x2={RULER_SIZE} y2="0" stroke="#1e293b" strokeWidth="1" />
+                      <line x1="0" y1={RULER_SIZE - 6} x2="0" y2={RULER_SIZE} stroke="#1e293b" strokeWidth="1" />
                     </pattern>
                     <pattern id="ruler-grid-y-50" width={RULER_SIZE} height="50" patternUnits="userSpaceOnUse">
-                      <line x1={RULER_SIZE - 12} y1="0" x2={RULER_SIZE} y2="0" stroke="#334155" strokeWidth="1.2" />
+                      <line x1="0" y1={RULER_SIZE - 12} x2="0" y2={RULER_SIZE} stroke="#334155" strokeWidth="1.2" />
                     </pattern>
                   </defs>
                   <rect width={RULER_SIZE} height={canvasHeight} fill="url(#ruler-grid-y-10)" />
@@ -2719,7 +2652,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Scrollable Viewport Stage */}
             <div
               ref={viewportScrollContainerRef}
               className="flex-1 overflow-auto flex items-start justify-center p-12 relative bg-slate-950/80 min-h-0 min-w-0"
@@ -2733,93 +2665,78 @@ export default function Home() {
                 fabricCanvasRef.current?.calcOffset();
               }}
             >
-              {/* Empty State: Centered PDF Drag & Drop Box */}
-            {!pdfBytes ? (
-              <div
-                className="w-full max-w-md p-8 rounded-2xl border-2 border-dashed flex flex-col items-center text-center transition-all duration-200 backdrop-blur-md shadow-2xl select-none z-30 bg-slate-900/80 border-slate-700/80 hover:border-cyan-500/50 hover:bg-slate-900/95 text-slate-300"
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setIsDraggingPdf(true);
-                }}
-                onDragLeave={(e) => {
-                  e.preventDefault();
-                  setIsDraggingPdf(false);
-                }}
-                onDrop={async (e) => {
-                  e.preventDefault();
-                  setIsDraggingPdf(false);
-                  const file = e.dataTransfer.files?.[0];
-                  if (file) {
-                    await handleTemplateUploadFile(file);
-                  }
-                }}
-              >
-                <div className="w-14 h-14 mb-4 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-center text-2xl shadow-inner">
-                  📄
+              {!pdfBytes ? (
+                <div
+                  className="w-full max-w-md p-8 rounded-2xl border-2 border-dashed flex flex-col items-center text-center transition-all duration-200 backdrop-blur-md shadow-2xl select-none z-30 bg-slate-900/80 border-slate-700/80 hover:border-cyan-500/50 hover:bg-slate-900/95 text-slate-300"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={async (e) => {
+                    e.preventDefault();
+                    const file = e.dataTransfer.files?.[0];
+                    if (file) await handleTemplateUploadFile(file);
+                  }}
+                >
+                  <div className="w-14 h-14 mb-4 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-center text-2xl shadow-inner">
+                    📄
+                  </div>
+                  <h3 className="text-base font-bold text-slate-100 mb-1">
+                    Drag & drop your Background PDF or Image
+                  </h3>
+                  <p className="text-xs text-slate-400 mb-6 max-w-xs leading-relaxed">
+                    Upload your PDF, PNG, JPG, or WebP template to start adding dynamic fields.
+                  </p>
+
+                  <label className="px-5 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-cyan-950/40 transition-all cursor-pointer flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]">
+                    <span>Browse Template File</span>
+                    <input
+                      type="file"
+                      hidden
+                      accept="application/pdf,image/png,image/jpeg,image/webp"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) await handleTemplateUploadFile(file);
+                      }}
+                    />
+                  </label>
                 </div>
-                <h3 className="text-base font-bold text-slate-100 mb-1">
-                  Drag & drop your Background PDF or Image
-                </h3>
-                <p className="text-xs text-slate-400 mb-6 max-w-xs leading-relaxed">
-                  Upload your PDF, PNG, JPG, or WebP template to start adding dynamic fields.
-                </p>
+              ) : null}
 
-                <label className="px-5 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-cyan-950/40 transition-all cursor-pointer flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]">
-                  <span>Browse Template File</span>
-                  <input
-                    type="file"
-                    hidden
-                    accept="application/pdf,image/png,image/jpeg,image/webp"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        await handleTemplateUploadFile(file);
-                      }
-                    }}
-                  />
-                </label>
-              </div>
-            ) : null}
-
-            {/* Isolated White Document Canvas Card */}
-            <div
-              style={{
-                display: pdfBytes ? 'block' : 'none',
-                width: `${canvasWidth}px`,
-                height: `${canvasHeight}px`,
-                position: 'relative',
-                margin: 'auto',
-                backgroundColor: '#ffffff',
-                boxShadow: '0 20px 40px -15px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.08)',
-              }}
-            >
               <div
                 style={{
-                  position: 'absolute',
-                  inset: 0,
+                  display: pdfBytes ? 'block' : 'none',
                   width: `${canvasWidth}px`,
                   height: `${canvasHeight}px`,
+                  position: 'relative',
+                  margin: 'auto',
+                  backgroundColor: '#ffffff',
+                  boxShadow: '0 20px 40px -15px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.08)',
                 }}
-                ref={containerRef}
-              />
-              {showGridOverlay && gridSnap > 0 && (
+              >
                 <div
-                  className="pointer-events-none absolute inset-0 z-50 mix-blend-difference opacity-40"
                   style={{
-                    backgroundImage: `radial-gradient(circle, #ffffff 1.5px, transparent 1.5px)`,
-                    backgroundSize: `${gridSnap}px ${gridSnap}px`,
-                    backgroundPosition: '0 0'
+                    position: 'absolute',
+                    inset: 0,
+                    width: `${canvasWidth}px`,
+                    height: `${canvasHeight}px`,
                   }}
+                  ref={containerRef}
                 />
-              )}
-            </div>
+                {showGridOverlay && gridSnap > 0 && (
+                  <div
+                    className="pointer-events-none absolute inset-0 z-50 mix-blend-difference opacity-40"
+                    style={{
+                      backgroundImage: `radial-gradient(circle, #ffffff 1.5px, transparent 1.5px)`,
+                      backgroundSize: `${gridSnap}px ${gridSnap}px`,
+                      backgroundPosition: '0 0',
+                    }}
+                  />
+                )}
+              </div>
             </div>
           </div>
 
           {/* SLIDE-UP CSV DATA TABLE DRAWER */}
           {isTableExpanded && csvData.length > 0 && (
             <div className="absolute inset-x-0 bottom-0 z-20 max-h-[50vh] flex flex-col bg-slate-900/95 backdrop-blur-md border-t border-slate-800 shadow-2xl transition-all duration-200">
-              {/* Drawer Header Toolbar */}
               <div className="shrink-0 px-4 py-2.5 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2">
@@ -2829,13 +2746,11 @@ export default function Home() {
                       {filteredIndexedRows.length} {filteredIndexedRows.length === 1 ? 'record' : 'records'}
                     </span>
                   </div>
-
                   <span className="text-[11px] text-slate-400 font-medium hidden md:inline">
                     (Click any row to bind canvas preview)
                   </span>
                 </div>
 
-                {/* Search & Pagination Controls */}
                 <div className="flex items-center gap-2">
                   <div className="relative">
                     <input
@@ -2848,7 +2763,6 @@ export default function Home() {
                     <span className="absolute left-2 top-1.5 text-xs text-slate-500">🔍</span>
                   </div>
 
-                  {/* Pagination */}
                   <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 rounded-lg p-0.5">
                     <button
                       type="button"
@@ -2875,14 +2789,12 @@ export default function Home() {
                     type="button"
                     onClick={() => setIsTableExpanded(false)}
                     className="p-1 px-2 text-xs font-bold text-slate-400 hover:text-white bg-slate-950 border border-slate-800 rounded-lg transition hover:bg-slate-800"
-                    title="Close table"
                   >
                     ✕
                   </button>
                 </div>
               </div>
 
-              {/* Scrollable Spreadsheet Table */}
               <div className="flex-1 overflow-auto max-h-[calc(50vh-48px)]">
                 <table className="w-full border-collapse text-left text-xs">
                   <thead className="sticky top-0 z-10 bg-slate-950 text-slate-400 font-bold border-b border-slate-800 select-none">
@@ -2915,9 +2827,7 @@ export default function Home() {
                               applyDataPreview(true, originalIndex);
                             }}
                             className={`cursor-pointer transition-colors ${
-                              isCurrent
-                                ? 'bg-cyan-950/60 text-cyan-200 font-semibold'
-                                : 'hover:bg-slate-800/50 text-slate-300'
+                              isCurrent ? 'bg-cyan-950/60 text-cyan-200 font-semibold' : 'hover:bg-slate-800/50 text-slate-300'
                             }`}
                           >
                             <td className="py-1.5 px-3 border-r border-slate-800/80 text-center font-bold text-slate-400 select-none">
@@ -2936,10 +2846,7 @@ export default function Home() {
                       })
                     ) : (
                       <tr>
-                        <td
-                          colSpan={csvHeaders.length + 1}
-                          className="py-8 text-center text-slate-500 font-sans"
-                        >
+                        <td colSpan={csvHeaders.length + 1} className="py-8 text-center text-slate-500 font-sans">
                           No matching records found for "{tableSearchQuery}".
                         </td>
                       </tr>
@@ -2959,7 +2866,11 @@ export default function Home() {
             </div>
 
             {/* CARD 0: EXACT TRANSFORM */}
-            <div className={`p-3 bg-slate-900/80 border border-slate-800 rounded-xl flex flex-col gap-2.5 transition-all duration-150 ${hasSelection ? 'opacity-100 ring-1 ring-cyan-500/40' : 'opacity-35 pointer-events-none select-none'}`}>
+            <div
+              className={`p-3 bg-slate-900/80 border border-slate-800 rounded-xl flex flex-col gap-2.5 transition-all duration-150 ${
+                hasSelection ? 'opacity-100 ring-1 ring-cyan-500/40' : 'opacity-35 pointer-events-none select-none'
+              }`}
+            >
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Transform</span>
                 <div className="flex items-center gap-1.5">
@@ -2971,7 +2882,6 @@ export default function Home() {
                         ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-xs'
                         : 'bg-slate-950 hover:bg-slate-800 text-slate-400 border-slate-800'
                     }`}
-                    title="Lock aspect ratio when resizing"
                   >
                     <span>{isRatioLocked ? '🔒' : '🔓'}</span>
                     <span>Lock Ratio</span>
@@ -2980,7 +2890,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* X and Y */}
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex items-center bg-slate-950 border border-slate-800 rounded-lg px-2 py-1">
                   <span className="text-[10px] font-bold text-slate-400 w-4 select-none">X</span>
@@ -3005,7 +2914,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Width and Height */}
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex items-center bg-slate-950 border border-slate-800 rounded-lg px-2 py-1">
                   <span className="text-[10px] font-bold text-slate-400 w-4 select-none">W</span>
@@ -3032,7 +2940,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Rotation Angle */}
               <div className="flex items-center justify-between bg-slate-950 border border-slate-800 rounded-lg px-2 py-1">
                 <div className="flex items-center flex-1">
                   <span className="text-[10px] font-bold text-slate-400 select-none mr-2">Angle</span>
@@ -3059,7 +2966,11 @@ export default function Home() {
             </div>
 
             {/* CARD 1: ARTBOARD ALIGNMENT */}
-            <div className={`p-3 bg-slate-900/80 border border-slate-800 rounded-xl flex flex-col gap-2 transition-all duration-150 ${hasSelection ? 'opacity-100 ring-1 ring-cyan-500/40' : 'opacity-35 pointer-events-none select-none'}`}>
+            <div
+              className={`p-3 bg-slate-900/80 border border-slate-800 rounded-xl flex flex-col gap-2 transition-all duration-150 ${
+                hasSelection ? 'opacity-100 ring-1 ring-cyan-500/40' : 'opacity-35 pointer-events-none select-none'
+              }`}
+            >
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Artboard Align</span>
                 {!hasSelection && <span className="text-[9px] text-slate-500 font-medium">No selection</span>}
@@ -3111,12 +3022,16 @@ export default function Home() {
             </div>
 
             {/* CARD 2: BARCODE & QR CODE PROPERTIES */}
-            <div className={`p-3 bg-slate-900/80 border border-slate-800 rounded-xl flex flex-col gap-2.5 transition-all duration-150 ${selectedBarcode ? 'opacity-100 ring-1 ring-cyan-500/40' : 'opacity-35 pointer-events-none select-none'}`}>
+            <div
+              className={`p-3 bg-slate-900/80 border border-slate-800 rounded-xl flex flex-col gap-2.5 transition-all duration-150 ${
+                selectedBarcode ? 'opacity-100 ring-1 ring-cyan-500/40' : 'opacity-35 pointer-events-none select-none'
+              }`}
+            >
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Barcode / QR Properties</span>
                 {!selectedBarcode && <span className="text-[9px] text-slate-500 font-medium">Select a code</span>}
               </div>
-              
+
               <div className="flex flex-col gap-1">
                 <span className="text-[10px] font-semibold text-slate-400">Symbology Format:</span>
                 <select
@@ -3135,21 +3050,25 @@ export default function Home() {
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => handleBarcodeColorChange("#000000")}
-                    className={"py-1.5 px-3 text-xs font-bold rounded-lg border transition cursor-pointer flex items-center justify-center gap-1.5 " +
-                      (selectedBarcodeColor.toLowerCase() === "#000000" || selectedBarcodeColor.toLowerCase() === "000000"
-                        ? "bg-cyan-500 text-slate-950 border-cyan-400 shadow-sm"
-                        : "bg-slate-950 hover:bg-slate-800 text-slate-300 border-slate-800")}
+                    onClick={() => handleBarcodeColorChange('#000000')}
+                    className={
+                      'py-1.5 px-3 text-xs font-bold rounded-lg border transition cursor-pointer flex items-center justify-center gap-1.5 ' +
+                      (selectedBarcodeColor.toLowerCase() === '#000000' || selectedBarcodeColor.toLowerCase() === '000000'
+                        ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-sm'
+                        : 'bg-slate-950 hover:bg-slate-800 text-slate-300 border-slate-800')
+                    }
                   >
                     <span>⬛</span> Black
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleBarcodeColorChange("#ffffff")}
-                    className={"py-1.5 px-3 text-xs font-bold rounded-lg border transition cursor-pointer flex items-center justify-center gap-1.5 " +
-                      (selectedBarcodeColor.toLowerCase() === "#ffffff" || selectedBarcodeColor.toLowerCase() === "ffffff"
-                        ? "bg-cyan-500 text-slate-950 border-cyan-400 shadow-sm"
-                        : "bg-slate-950 hover:bg-slate-800 text-slate-300 border-slate-800")}
+                    onClick={() => handleBarcodeColorChange('#ffffff')}
+                    className={
+                      'py-1.5 px-3 text-xs font-bold rounded-lg border transition cursor-pointer flex items-center justify-center gap-1.5 ' +
+                      (selectedBarcodeColor.toLowerCase() === '#ffffff' || selectedBarcodeColor.toLowerCase() === 'ffffff'
+                        ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-sm'
+                        : 'bg-slate-950 hover:bg-slate-800 text-slate-300 border-slate-800')
+                    }
                   >
                     <span>⬜</span> White
                   </button>
@@ -3158,7 +3077,11 @@ export default function Home() {
             </div>
 
             {/* CARD 3: TYPOGRAPHY & TEXT PROPERTIES */}
-            <div className={`p-3 bg-slate-900/80 border border-slate-800 rounded-xl flex flex-col gap-2.5 transition-all duration-150 ${selectedTag ? 'opacity-100 ring-1 ring-cyan-500/40' : 'opacity-35 pointer-events-none select-none'}`}>
+            <div
+              className={`p-3 bg-slate-900/80 border border-slate-800 rounded-xl flex flex-col gap-2.5 transition-all duration-150 ${
+                selectedTag ? 'opacity-100 ring-1 ring-cyan-500/40' : 'opacity-35 pointer-events-none select-none'
+              }`}
+            >
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Typography & Style</span>
                 {!selectedTag && <span className="text-[9px] text-slate-500 font-medium">Select a text field</span>}
@@ -3184,14 +3107,18 @@ export default function Home() {
                   {customFontsList.length > 0 && (
                     <optgroup label="Uploaded Fonts">
                       {customFontsList.map((f) => (
-                        <option key={f.value} value={f.value}>{f.label}</option>
+                        <option key={f.value} value={f.value}>
+                          {f.label}
+                        </option>
                       ))}
                     </optgroup>
                   )}
                   {SYSTEM_FONT_GROUPS.map((group) => (
                     <optgroup key={group.category} label={group.category}>
                       {group.fonts.map((f) => (
-                        <option key={f.value} value={f.value}>{f.label}</option>
+                        <option key={f.value} value={f.value}>
+                          {f.label}
+                        </option>
                       ))}
                     </optgroup>
                   ))}
@@ -3298,7 +3225,11 @@ export default function Home() {
             </div>
 
             {/* CARD 4: IMAGE CROP & MASK */}
-            <div className={`p-3 bg-slate-900/80 border border-slate-800 rounded-xl flex flex-col gap-2 transition-all duration-150 ${selectedImage ? 'opacity-100 ring-1 ring-cyan-500/40' : 'opacity-35 pointer-events-none select-none'}`}>
+            <div
+              className={`p-3 bg-slate-900/80 border border-slate-800 rounded-xl flex flex-col gap-2 transition-all duration-150 ${
+                selectedImage ? 'opacity-100 ring-1 ring-cyan-500/40' : 'opacity-35 pointer-events-none select-none'
+              }`}
+            >
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Image Shape Mask</span>
                 {!selectedImage && <span className="text-[9px] text-slate-500 font-medium">Select an image</span>}
@@ -3346,7 +3277,6 @@ export default function Home() {
                 </button>
               </div>
             </div>
-
           </div>
         </aside>
       </div>
