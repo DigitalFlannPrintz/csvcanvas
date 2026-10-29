@@ -232,31 +232,39 @@ export function parseRangeString(input: string, maxLimit: number): number[] {
 }
 
 // Convert dataURL to standard PNG byte stream
-async function normalizeImageDataToPngBytes(dataUrl: string): Promise<Uint8Array | null> {
+async function normalizeImageDataToPngBytes(data: string | ArrayBuffer | Uint8Array): Promise<Uint8Array | null> {
+  let objectUrlToRevoke: string | null = null;
   try {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    img.crossOrigin = "anonymous";
     await new Promise((resolve, reject) => {
       img.onload = resolve;
       img.onerror = reject;
-      img.src = dataUrl;
+      if (typeof data === "string") {
+        img.src = data;
+      } else {
+        const blob = new Blob([data as any]);
+        objectUrlToRevoke = URL.createObjectURL(blob);
+        img.src = objectUrlToRevoke;
+      }
     });
 
-    const offscreen = document.createElement('canvas');
+    const offscreen = document.createElement("canvas");
     offscreen.width = img.naturalWidth || img.width || 100;
     offscreen.height = img.naturalHeight || img.height || 100;
-    const ctx = offscreen.getContext('2d');
+    const ctx = offscreen.getContext("2d");
     if (!ctx) return null;
-
     ctx.drawImage(img, 0, 0);
 
-    const blob = await new Promise<Blob | null>((resolve) => offscreen.toBlob(resolve, 'image/png'));
+    const blob = await new Promise<Blob | null>((resolve) => offscreen.toBlob(resolve, "image/png"));
+    if (objectUrlToRevoke) URL.revokeObjectURL(objectUrlToRevoke);
     if (!blob) return null;
 
     const buffer = await blob.arrayBuffer();
     return new Uint8Array(buffer);
   } catch (err) {
-    console.error('Failed to convert image to clean PNG byte stream:', err);
+    if (objectUrlToRevoke) URL.revokeObjectURL(objectUrlToRevoke);
+    console.error("Failed to convert image to clean PNG byte stream:", err);
     return null;
   }
 }
