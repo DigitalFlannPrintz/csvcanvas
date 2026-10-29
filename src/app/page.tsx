@@ -730,6 +730,7 @@ export default function Home() {
           includetext: bcid !== "qrcode",
           textxalign: "center",
           barcolor: cleanHex,
+          textcolor: cleanHex,
         };
         if (bcid !== 'qrcode') {
           opts.height = 10;

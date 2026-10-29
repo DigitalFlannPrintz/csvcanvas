@@ -124,6 +124,7 @@ async function generateBarcodePng(bcid: string, text: string, color: string = "#
       includetext: normalizedBcid !== "qrcode",
       textxalign: "center",
       barcolor: cleanHex,
+      textcolor: cleanHex,
     };
     if (normalizedBcid !== "qrcode") {
       opts.height = 10;
