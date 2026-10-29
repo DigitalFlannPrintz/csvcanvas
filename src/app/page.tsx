@@ -2120,7 +2120,7 @@ export default function Home() {
             ) : (
               <>
                 <span>⚡</span>
-                <span>Export PDF</span>
+                <span>Export</span>
               </>
             )}
           </button>
@@ -2431,6 +2431,19 @@ export default function Home() {
                   }`}
                 >
                   20px
+                </button>
+                <div className="h-4 w-px bg-slate-800 mx-0.5" />
+                <button
+                  type="button"
+                  onClick={() => setShowGridOverlay(!showGridOverlay)}
+                  disabled={gridSnap === 0}
+                  className={`px-2 py-1 text-[11px] font-semibold rounded transition flex items-center gap-1 ${
+                    gridSnap === 0 ? 'opacity-40 cursor-not-allowed text-slate-600' : 
+                    showGridOverlay ? 'text-slate-200 bg-slate-850' : 'text-slate-500 hover:text-slate-300'
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${showGridOverlay && gridSnap > 0 ? 'bg-cyan-400' : 'bg-slate-600'}`} />
+                  Dots
                 </button>
               </div>
             </div>
@@ -2751,7 +2764,12 @@ export default function Home() {
                 margin: 'auto',
                   backgroundColor: '#ffffff',
                   boxShadow: '0 20px 40px -15px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.08)',
-                }}
+                ...(showGridOverlay && gridSnap > 0 ? {
+                  backgroundImage: `radial-gradient(circle, #cbd5e1 1px, transparent 1px)`,
+                  backgroundSize: `${gridSnap}px ${gridSnap}px`,
+                  backgroundPosition: '0 0'
+                } : {})
+              }}
               >
                 <div
                   style={{
