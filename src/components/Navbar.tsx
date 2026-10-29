@@ -24,4 +24,3 @@ export default function Navbar() {
     </nav>
   );
 }
-zsh: parse error near `\n'
