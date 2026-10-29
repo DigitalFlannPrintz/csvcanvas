@@ -1591,7 +1591,78 @@ export default function Home() {
     };
   }, []);
 
-    const processPdfFile = async (file: File) => {
+    
+  const processRasterImageFile = (file: File) => {
+    return new Promise<void>((resolve, reject) => {
+      const canvas = fabricCanvasRef.current;
+      const fb = fabricModuleRef.current;
+      if (!canvas || !fb) return resolve();
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result as string;
+        if (!dataUrl) return resolve();
+
+        const imgEl = new Image();
+        imgEl.onload = () => {
+          let w = imgEl.naturalWidth;
+          let h = imgEl.naturalHeight;
+
+          // Default fallback constraints if dimensions are 0
+          if (!w || !h) {
+            w = 850;
+            h = 1100;
+          }
+
+          setCanvasWidth(w);
+          setCanvasHeight(h);
+          canvas.setWidth(w);
+          canvas.setHeight(h);
+
+          fb.Image.fromURL(dataUrl, (fabricImg: any) => {
+            if (!fabricImg) return resolve();
+            fabricImg.set({
+              originX: 'left',
+              originY: 'top',
+              selectable: false,
+              evented: false,
+              excludeFromExport: false,
+              scaleX: w / (fabricImg.width || w),
+              scaleY: h / (fabricImg.height || h),
+            });
+
+            canvas.setBackgroundImage(fabricImg, () => {
+              canvas.renderAll();
+              if (typeof saveState === 'function') {
+                saveState(canvas);
+              }
+              const dummyBuffer = new ArrayBuffer(file.size || 1024);
+              setPdfBytes(dummyBuffer);
+              setTotalPages(1);
+              setCurrentPageIndex(0);
+              resolve();
+            });
+          });
+        };
+        imgEl.onerror = reject;
+        imgEl.src = dataUrl;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleTemplateUploadFile = async (file: File) => {
+    if (file.type === 'application/pdf') {
+      await processPdfFile(file);
+    } else if (file.type.startsWith('image/')) {
+      await processRasterImageFile(file);
+    } else {
+      alert('Please upload a valid .pdf, .png, .jpg, or .webp file.');
+    }
+  };
+
+  const processPdfFile = async (file: File) => {
     const canvas = fabricCanvasRef.current;
     const fb = fabricModuleRef.current;
     const pdfjsLib = (window as any).pdfjsLib;
@@ -2065,14 +2136,19 @@ export default function Home() {
                 <label className="w-full py-2 px-3 bg-slate-950 hover:bg-slate-850 text-slate-200 border border-slate-800 hover:border-cyan-500/50 font-semibold text-xs rounded-lg transition cursor-pointer flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-cyan-400">📄</span>
-                    <span>Background PDF</span>
+                    <span>Template (PDF/Img)</span>
                   </div>
                   {pdfBytes ? (
                     <span className="text-[10px] bg-cyan-950 text-cyan-300 border border-cyan-800 px-1.5 py-0.5 rounded font-bold">Loaded</span>
                   ) : (
                     <span className="text-[10px] text-slate-500 font-medium">Browse...</span>
                   )}
-                  <input type="file" hidden accept="application/pdf" onChange={handlePdfUpload} />
+                  <input type="file" hidden accept="application/pdf,image/png,image/jpeg,image/webp" onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      await handleTemplateUploadFile(file);
+                    }
+                  }} />
                 </label>
 
                 <label className="w-full py-2 px-3 bg-slate-950 hover:bg-slate-850 text-slate-200 border border-slate-800 hover:border-emerald-500/50 font-semibold text-xs rounded-lg transition cursor-pointer flex items-center justify-between">
@@ -2348,6 +2424,65 @@ export default function Home() {
               </div>
             </div>
 
+            {/* Live Data Preview Controls */}
+            {csvData.length > 0 && (
+              <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-lg p-0.5 text-xs">
+                <button
+                  type="button"
+                  onClick={togglePreviewMode}
+                  className={`px-2.5 py-1 text-[11px] font-bold rounded transition flex items-center gap-1.5 ${
+                    isPreviewMode
+                      ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                  }`}
+                  title="Toggle live variable-data evaluation on canvas"
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${isPreviewMode ? 'bg-slate-950 animate-pulse' : 'bg-slate-500'}`} />
+                  Preview
+                </button>
+
+                {isPreviewMode && (
+                  <div className="flex items-center border-l border-slate-800 pl-1.5 pr-0.5 gap-1">
+                    <button
+                      type="button"
+                      disabled={previewRowIndex <= 0}
+                      onClick={() => {
+                        const nextIdx = Math.max(0, previewRowIndex - 1);
+                        setPreviewRowIndex(nextIdx);
+                        previewRowIndexRef.current = nextIdx;
+                        applyDataPreview(true, nextIdx);
+                      }}
+                      className={`px-1.5 py-0.5 text-[10px] font-bold rounded ${
+                        previewRowIndex <= 0 ? 'text-slate-600 cursor-not-allowed' : 'text-slate-300 hover:bg-slate-850 hover:text-white'
+                      }`}
+                      title="Previous record"
+                    >
+                      ◀
+                    </button>
+                    <span className="text-[10px] font-mono text-slate-400 px-1 select-none">
+                      {previewRowIndex + 1}/{csvData.length}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={previewRowIndex >= csvData.length - 1}
+                      onClick={() => {
+                        const nextIdx = Math.min(csvData.length - 1, previewRowIndex + 1);
+                        setPreviewRowIndex(nextIdx);
+                        previewRowIndexRef.current = nextIdx;
+                        applyDataPreview(true, nextIdx);
+                      }}
+                      className={`px-1.5 py-0.5 text-[10px] font-bold rounded ${
+                        previewRowIndex >= csvData.length - 1 ? 'text-slate-600 cursor-not-allowed' : 'text-slate-300 hover:bg-slate-850 hover:text-white'
+                      }`}
+                      title="Next record"
+                    >
+                      ▶
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Right: History, Delete, Reset */}
             <div className="flex items-center gap-2">
               <div className="flex items-center bg-slate-950 border border-slate-800 rounded-lg p-0.5 text-xs">
@@ -2547,12 +2682,61 @@ export default function Home() {
                 fabricCanvasRef.current?.calcOffset();
               }}
             >
-              {/* Isolated White Document Canvas Card */}
+              {/* Empty State: Centered PDF Drag & Drop Box */}
+            {!pdfBytes ? (
               <div
-                style={{
-                  width: `${canvasWidth}px`,
-                  height: `${canvasHeight}px`,
-                  position: 'relative',
+                className="w-full max-w-md p-8 rounded-2xl border-2 border-dashed flex flex-col items-center text-center transition-all duration-200 backdrop-blur-md shadow-2xl select-none z-30 bg-slate-900/80 border-slate-700/80 hover:border-cyan-500/50 hover:bg-slate-900/95 text-slate-300"
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDraggingPdf(true);
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  setIsDraggingPdf(false);
+                }}
+                onDrop={async (e) => {
+                  e.preventDefault();
+                  setIsDraggingPdf(false);
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) {
+                    await handleTemplateUploadFile(file);
+                  }
+                }}
+              >
+                <div className="w-14 h-14 mb-4 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-center text-2xl shadow-inner">
+                  📄
+                </div>
+                <h3 className="text-base font-bold text-slate-100 mb-1">
+                  Drag & drop your Background PDF or Image
+                </h3>
+                <p className="text-xs text-slate-400 mb-6 max-w-xs leading-relaxed">
+                  Upload your PDF, PNG, JPG, or WebP template to start adding dynamic fields.
+                </p>
+
+                <label className="px-5 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-cyan-950/40 transition-all cursor-pointer flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]">
+                  <span>Browse Template File</span>
+                  <input
+                    type="file"
+                    hidden
+                    accept="application/pdf,image/png,image/jpeg,image/webp"
+                    onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      await handleTemplateUploadFile(file);
+                    }
+                  }}
+                  />
+                </label>
+              </div>
+            ) : null}
+
+            {/* Isolated White Document Canvas Card */}
+            <div
+              style={{
+                display: pdfBytes ? 'block' : 'none',
+                width: `${canvasWidth}px`,
+                height: `${canvasHeight}px`,
+                position: 'relative',
                   backgroundColor: '#ffffff',
                   boxShadow: '0 20px 40px -15px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.08)',
                 }}
