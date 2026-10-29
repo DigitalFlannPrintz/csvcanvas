@@ -2348,9 +2348,9 @@ export default function Home() {
         {/* CENTER STAGE: Canvas Viewport */}
         <main className="flex-1 flex flex-col min-w-0 bg-slate-950 overflow-hidden relative">
           {/* Top Control Bar: Zoom, Snap, Guides */}
-          <div className="shrink-0 h-11 border-b border-slate-800 bg-slate-900/60 px-3 flex items-center justify-between gap-3 select-none z-10">
+          <div className="shrink-0 min-h-[44px] py-1.5 border-b border-slate-800 bg-slate-900/60 px-3 flex flex-wrap items-center justify-between gap-3 select-none z-10">
             {/* Left: Viewport Controls (Zoom, Guides, Grid) */}
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {/* Zoom Controls */}
               <div className="flex items-center bg-slate-950 border border-slate-800 rounded-lg p-0.5 text-xs">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2 select-none">
@@ -2535,7 +2535,7 @@ export default function Home() {
             )}
 
             {/* Right: History, Delete, Reset */}
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <div className="flex items-center bg-slate-950 border border-slate-800 rounded-lg p-0.5 text-xs">
                 <button
                   type="button"
