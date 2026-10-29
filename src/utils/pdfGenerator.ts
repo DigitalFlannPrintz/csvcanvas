@@ -1,3 +1,11 @@
+
+function isPdfBuffer(buffer: ArrayBuffer): boolean {
+  if (!buffer || buffer.byteLength < 4) return false;
+  const bytes = new Uint8Array(buffer.slice(0, 4));
+  // %PDF -> 0x25, 0x50, 0x44, 0x46
+  return bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46;
+}
+
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import bwipjs from 'bwip-js';
@@ -267,8 +275,47 @@ export async function generateVDP(
 
   barcodeBufferCache.clear();
 
-  const pdfDoc = await PDFDocument.load(basePdfBytes);
-  const totalTemplatePages = pdfDoc.getPageCount();
+  let pdfDoc: PDFDocument;
+  let totalTemplatePages = 1;
+
+  if (isPdfBuffer(basePdfBytes)) {
+    pdfDoc = await PDFDocument.load(basePdfBytes);
+    totalTemplatePages = pdfDoc.getPageCount();
+  } else {
+    // Raster template (PNG, JPG, WebP) -> construct single-page PDF document
+    pdfDoc = await PDFDocument.create();
+    let embeddedImg: any = null;
+    try {
+      const pngBytes = await normalizeImageDataToPngBytes(basePdfBytes);
+      if (pngBytes) {
+        embeddedImg = await pdfDoc.embedPng(pngBytes);
+      } else {
+        try {
+          embeddedImg = await pdfDoc.embedJpg(basePdfBytes);
+        } catch {
+          embeddedImg = await pdfDoc.embedPng(basePdfBytes);
+        }
+      }
+    } catch (e) {
+      console.warn('Initial raster embed attempt, falling back to direct embed:', e);
+      try {
+        embeddedImg = await pdfDoc.embedPng(basePdfBytes);
+      } catch {
+        embeddedImg = await pdfDoc.embedJpg(basePdfBytes);
+      }
+    }
+
+    const imgWidth = embeddedImg.width;
+    const imgHeight = embeddedImg.height;
+    const imgPage = pdfDoc.addPage([imgWidth, imgHeight]);
+    imgPage.drawImage(embeddedImg, {
+      x: 0,
+      y: 0,
+      width: imgWidth,
+      height: imgHeight,
+    });
+    totalTemplatePages = 1;
+  }
 
   const activeTemplateIndices = (targetPageIndices && targetPageIndices.length > 0)
     ? targetPageIndices.filter((idx) => idx >= 0 && idx < totalTemplatePages)

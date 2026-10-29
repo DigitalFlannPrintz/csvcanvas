@@ -1306,10 +1306,19 @@ export default function Home() {
     if (pdfDocProxyRef.current) {
       await renderPdfBackgroundAtWidth(pdfDocProxyRef.current, currentPageIndexRef.current + 1, newWidth);
     } else {
-      const newHeight = Math.round(newWidth * 1.333);
+      const currentHeight = canvas.height || canvasHeight;
+      const newHeight = Math.round(currentHeight * scaleRatio);
       canvas.setWidth(Math.round(newWidth));
       canvas.setHeight(newHeight);
       setCanvasHeight(newHeight);
+
+      const bgImg = canvas.backgroundImage as any;
+      if (bgImg) {
+        bgImg.set({
+          scaleX: (bgImg.scaleX || 1) * scaleRatio,
+          scaleY: (bgImg.scaleY || 1) * scaleRatio,
+        });
+      }
       canvas.renderAll();
     }
 
@@ -1636,8 +1645,9 @@ export default function Home() {
               if (typeof saveState === 'function') {
                 saveState(canvas);
               }
-              const dummyBuffer = new ArrayBuffer(file.size || 1024);
-              setPdfBytes(dummyBuffer);
+              file.arrayBuffer().then((buf) => {
+                setPdfBytes(buf);
+              });
               setTotalPages(1);
               setCurrentPageIndex(0);
               resolve();
@@ -2671,7 +2681,7 @@ export default function Home() {
             {/* Scrollable Viewport Stage */}
             <div
               ref={viewportScrollContainerRef}
-              className="flex-1 overflow-auto flex items-center justify-center p-12 relative bg-slate-950/80"
+              className="flex-1 overflow-auto flex items-start justify-center p-12 relative bg-slate-950/80 min-h-0 min-w-0"
               style={{
                 marginLeft: `${RULER_SIZE}px`,
                 marginTop: `${RULER_SIZE}px`,
@@ -2737,6 +2747,7 @@ export default function Home() {
                 width: `${canvasWidth}px`,
                 height: `${canvasHeight}px`,
                 position: 'relative',
+                margin: 'auto',
                   backgroundColor: '#ffffff',
                   boxShadow: '0 20px 40px -15px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.08)',
                 }}
