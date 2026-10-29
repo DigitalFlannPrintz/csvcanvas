@@ -804,8 +804,20 @@ export default function Home() {
       const scale = targetWidth / (img.width || 1);
 
       img.set({
-        left: Math.round(100 / snap) * snap,
-        top: Math.round(100 / snap) * snap,
+        originX: 'center',
+        originY: 'center',
+        left: (() => {
+          const cvs = fabricCanvasRef.current;
+          const rect = cvs?.lowerCanvasEl?.getBoundingClientRect();
+          const center = rect ? (window.innerWidth / 2) - rect.left : 100;
+          return Math.round((center + (Math.random() * 40 - 20)) / snap) * snap;
+        })(),
+        top: (() => {
+          const cvs = fabricCanvasRef.current;
+          const rect = cvs?.lowerCanvasEl?.getBoundingClientRect();
+          const center = rect ? (window.innerHeight / 2) - rect.top : 100;
+          return Math.round((center + (Math.random() * 40 - 20)) / snap) * snap;
+        })(),
         scaleX: scale,
         scaleY: scale,
         cornerColor: '#38bdf8',
