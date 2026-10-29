@@ -1,5 +1,21 @@
-FullName,Barcode,QR Code
-Sarah Jenkins,BC-90821,https://csvcanvas.app/verify/90821
-Alexander Wright,BC-44120,https://csvcanvas.app/verify/44120
-Elena Rostova,BC-33104,https://csvcanvas.app/verify/33104
-Marcus Vance,BC-77291,https://csvcanvas.app/verify/77291
+CertFullName,CertYOS,Year,TicketPrice,BarCode,Date,QRCode,BadgeTitle,BadgeDept
+Joseph Jones,1,2023,$206.61,299701277151,"February 17, 2026",3eebfe00-8a73-41aa-ad83-28f40ecc1192,Analyst,Customer Support
+James Gonzalez,25,2020,$256.62,550811846198,"January 14, 2026",c01f853c-23ce-4c55-9a09-1f7c36e80461,Engineer,Customer Support
+William Rodriguez,40,2022,$50.90,640978504527,"February 01, 2025",9ded43d9-5e41-44ba-b525-9973c5caba59,Director,Human Resources
+Robert Martin,1,2021,$453.77,706640982469,"September 21, 2026",a65731cf-13a3-4954-bbe3-ff413bf586e3,Lead,Product
+Jennifer Martinez,25,2011,$317.84,820432888043,"June 19, 2025",097a3862-14cc-41c6-a1c8-1cdb91b6ac00,Specialist,Operations
+Charles Johnson,12,2011,$219.68,835489669765,"December 06, 2025",f02dc305-12f9-4f12-9830-369ec9be122d,Engineer,Customer Support
+Barbara Taylor,19,2013,$358.77,432808788845,"August 07, 2025",c0de61c4-3aed-4c83-aff3-75c8e29ac096,Engineer,Legal
+Charles Martinez,23,2012,$185.27,691718610604,"October 11, 2026",66f07cec-6413-41dd-8268-0627b7fee069,Engineer,Customer Support
+Thomas Gonzalez,31,2022,$254.21,737065546114,"February 04, 2026",c0f7fda1-b268-4376-97b9-4fda4f217490,Specialist,Sales
+Jessica Brown,8,2021,$109.79,167776290506,"June 15, 2025",ba25e5a9-80c4-48a4-98f1-579eeaa06c52,Engineer,Engineering
+David Hernandez,14,2017,$185.72,232712363280,"April 12, 2026",aba6c8ae-fab6-4850-bdcd-606ce061801b,Specialist,Product
+Patricia Williams,9,2020,$393.18,820046850748,"October 06, 2025",35e715f5-42fe-4b7e-bf65-0d729031598f,Officer,Legal
+Sarah Martin,10,2023,$141.20,328825901018,"May 11, 2026",a63fc781-4d04-4dc2-9d7c-0825ffeb7bde,Director,IT
+Barbara Jones,4,2015,$389.33,826582725527,"November 21, 2026",884c201b-dce5-4056-ac6a-f34c13a11091,Associate,Engineering
+Charles Moore,14,2015,$150.32,272418681468,"December 06, 2025",b021a1ab-11df-45d8-9a08-b4453edd3cc6,Consultant,Finance
+Thomas Rodriguez,14,2011,$260.46,515167176306,"March 24, 2025",92bc87a9-6444-4e4a-b908-05b188a19050,Specialist,Operations
+Patricia Anderson,35,2012,$134.82,583855310426,"July 12, 2026",47ea7593-1f17-4cf7-8066-606141e18036,Director,Finance
+Mary Williams,27,2021,$169.71,813824085507,"March 10, 2026",82dd544e-ba49-41dc-b751-ac612ae24d3c,Lead,IT
+Charles Wilson,34,2022,$30.45,767750131404,"March 13, 2026",07fafc20-aefd-49ae-b518-5e8f192aeb2f,Lead,Sales
+Barbara Brown,3,2011,$91.83,816536848023,"January 01, 2026",d59721f7-ef13-47f9-9591-88adc7deceb8,Officer,IT
