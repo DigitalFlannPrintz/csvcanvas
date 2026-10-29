@@ -1841,7 +1841,7 @@ export default function Home() {
         fontFamily: fontFamily,
         textAlign: 'left',
         tagColor: '#0f172a',
-        backgroundColor: 'transparent',
+        backgroundColor: 'rgba(255, 0, 255, 0.25)',
         padding: 0,
         cornerColor: '#0284c7',
         cornerSize: 10,
