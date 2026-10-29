@@ -1740,12 +1740,32 @@ export default function Home() {
     if (!canvas || !fb) return;
 
     const snap = gridSnapRef.current || 1;
-    const rawLeft = 100 + Math.random() * 40;
-    const rawTop = 100 + Math.random() * 40;
+    const cvs = fabricCanvasRef.current;
+      const vpt = cvs.viewportTransform || [1, 0, 0, 1, 0, 0];
+      const zoom = cvs.getZoom() || 1;
+      
+      const visibleCenterX = (-vpt[4] + (cvs.getWidth() / 2)) / zoom;
+      const visibleCenterY = (-vpt[5] + (cvs.getHeight() / 2)) / zoom;
+      
+      const offset = (Math.random() * 40) - 20; 
+      
+      const rawLeft = visibleCenterX + offset;
+      const rawTop = visibleCenterY + offset;
 
     const textObj = new fb.Textbox(initialString, {
-      left: Math.round(rawLeft / snap) * snap,
-      top: Math.round(rawTop / snap) * snap,
+      left: (() => {
+        const cvs = fabricCanvasRef.current;
+        const rect = cvs?.lowerCanvasEl?.getBoundingClientRect();
+        const center = rect ? (window.innerWidth / 2) - rect.left : rawLeft;
+        return Math.round((center + (Math.random() * 40 - 20)) / snap) * snap;
+      })(),
+      top: (() => {
+        const cvs = fabricCanvasRef.current;
+        const rect = cvs?.lowerCanvasEl?.getBoundingClientRect();
+        // Adjust for standard browser scroll using bounding box
+        const center = rect ? (window.innerHeight / 2) - rect.top : rawTop;
+        return Math.round((center + (Math.random() * 40 - 20)) / snap) * snap;
+      })(),
       width: 260,
       fontSize: fontSize || 22,
       fill: textColor || "#0f172a",
@@ -1800,8 +1820,19 @@ export default function Home() {
       }
 
       const text = new fb.Textbox(initialText, {
-        left: Math.round(rawLeft / snap) * snap,
-        top: Math.round(rawTop / snap) * snap,
+        left: (() => {
+        const cvs = fabricCanvasRef.current;
+        const rect = cvs?.lowerCanvasEl?.getBoundingClientRect();
+        const center = rect ? (window.innerWidth / 2) - rect.left : rawLeft;
+        return Math.round((center + (Math.random() * 40 - 20)) / snap) * snap;
+      })(),
+      top: (() => {
+        const cvs = fabricCanvasRef.current;
+        const rect = cvs?.lowerCanvasEl?.getBoundingClientRect();
+        // Adjust for standard browser scroll using bounding box
+        const center = rect ? (window.innerHeight / 2) - rect.top : rawTop;
+        return Math.round((center + (Math.random() * 40 - 20)) / snap) * snap;
+      })(),
         width: 220,
         fontSize: 24,
         fill: '#0f172a',
@@ -1810,7 +1841,7 @@ export default function Home() {
         fontFamily: fontFamily,
         textAlign: 'left',
         tagColor: '#0f172a',
-        backgroundColor: 'rgba(241, 245, 249, 0.95)',
+        backgroundColor: 'transparent',
         padding: 0,
         cornerColor: '#0284c7',
         cornerSize: 10,
@@ -2211,7 +2242,7 @@ export default function Home() {
                 </div>
 
                 {/* Column Chips */}
-                <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
+                <div className="flex flex-wrap gap-1.5 pr-1">
                   {csvHeaders.map((header) => (
                     <button
                       key={header}
