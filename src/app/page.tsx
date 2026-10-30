@@ -2044,7 +2044,7 @@ export default function Home() {
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-950 text-slate-100 selection:bg-cyan-500 selection:text-white">
       {/* 1. TOP GLOBAL APP HEADER */}
       <div className="shrink-0 z-30">
-        <header className="w-full border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-30 px-6 py-1 flex items-center justify-between shadow-xs mb-6">
+        <header className="w-full border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-30 px-8 py-3 flex items-center justify-between shadow-lg mb-6">
           <div className="flex items-center gap-3">
             <img src="/CSVCanvas_SiteLogo.svg" alt="CSVCanvas Logo" className="h-7 w-auto" />
             <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 font-mono shrink-0">
