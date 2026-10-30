@@ -133,11 +133,14 @@ export default function Home() {
 
   useEffect(() => {
     const handleResize = () => {
-      const padding = 32;
       const screenW = window.innerWidth;
-      // Calculate scale if screen is smaller than canvas, otherwise 100%
-      const scale = screenW < canvasWidth + padding ? (screenW - padding) / canvasWidth : 1;
-      setDisplayScale(scale);
+      if (screenW >= 1024) {
+        setDisplayScale(1);
+      } else {
+        const padding = 32;
+        const scale = (screenW - padding) / canvasWidth;
+        setDisplayScale(Math.min(scale, 1));
+      }
     };
     
     handleResize();
@@ -2126,7 +2129,7 @@ export default function Home() {
       {/* 2. THREE-PANE MAIN WORKBENCH */}
       <div className="flex flex-1 min-h-0 w-full overflow-hidden">
         {/* LEFT PANEL: Ingestion, CSV Chips & Elements (w-80) */}
-        <aside className="w-80 shrink-0 border-r border-slate-800/80 bg-slate-900/40 flex flex-col justify-between overflow-y-auto p-3.5 gap-4">
+        <aside className="hidden lg:flex flex-col w-80 shrink-0 border-r border-slate-800/80 bg-slate-900/40 justify-between overflow-y-auto p-3.5 gap-4">
           <div className="flex flex-col gap-3.5">
             <div className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 px-1">
               Data & Assets
@@ -2882,7 +2885,7 @@ export default function Home() {
         </main>
 
         {/* RIGHT INSPECTOR: Contextual Properties (w-80) */}
-        <aside className="w-80 shrink-0 border-l border-slate-800/80 bg-slate-900/40 flex flex-col justify-between overflow-y-auto p-3.5 gap-4">
+        <aside className="hidden lg:flex flex-col w-80 shrink-0 border-l border-slate-800/80 bg-slate-900/40 justify-between overflow-y-auto p-3.5 gap-4">
           <div className="flex flex-col gap-3.5">
             <div className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 px-1">
               Properties
