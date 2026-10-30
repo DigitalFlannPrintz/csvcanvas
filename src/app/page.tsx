@@ -129,6 +129,21 @@ export default function Home() {
 
   const [canvasWidth, setCanvasWidth] = useState<number>(850);
   const [canvasHeight, setCanvasHeight] = useState<number>(1100);
+  const [displayScale, setDisplayScale] = useState<number>(1);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const padding = 32;
+      const screenW = window.innerWidth;
+      // Calculate scale if screen is smaller than canvas, otherwise 100%
+      const scale = screenW < canvasWidth + padding ? (screenW - padding) / canvasWidth : 1;
+      setDisplayScale(scale);
+    };
+    
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [canvasWidth]);
 
   const [gridSnap, setGridSnap] = useState<number>(0);
   const gridSnapRef = useRef<number>(0);
@@ -1319,6 +1334,8 @@ export default function Home() {
           setCsvData(results.data);
           csvDataRef.current = results.data;
           setPreviewRowIndex(0);
+          setIsReady(true);
+          setIsReady(true);
           previewRowIndexRef.current = 0;
           setTableCurrentPage(1);
           setTableSearchQuery('');
@@ -2712,6 +2729,8 @@ export default function Home() {
                   position: 'relative',
                   margin: 'auto',
                   backgroundColor: '#ffffff',
+                  transform: `scale(${displayScale})`,
+                  transformOrigin: 'top center',
                   boxShadow: '0 20px 40px -15px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.08)',
                 }}
               >
