@@ -203,6 +203,7 @@ export default function Home() {
   const pendingBlobRef = useRef<Blob | null>(null);
 
   const [showTemplateDropdown, setShowTemplateDropdown] = useState<boolean>(false);
+  const [mobileDrawer, setMobileDrawer] = useState<'none' | 'assets' | 'properties'>('none');
 
   const serializeFabricObject = (obj: any) => {
     const data = obj.toObject([
@@ -3306,6 +3307,72 @@ export default function Home() {
           </div>
         </aside>
       </div>
+
+      
+      {/* MOBILE BOTTOM DOCK (Hidden on Desktop >= 1024px) */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 border-t border-slate-800 backdrop-blur-md px-4 py-2 flex items-center justify-around">
+        <button
+          type="button"
+          onClick={() => setMobileDrawer(mobileDrawer === 'assets' ? 'none' : 'assets')}
+          className={`flex flex-col items-center gap-1 py-1 px-4 rounded-lg text-xs font-semibold transition ${
+            mobileDrawer === 'assets' ? 'text-cyan-400 bg-slate-800' : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <span className="text-base">📁</span>
+          <span>Data & Assets</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMobileDrawer(mobileDrawer === 'properties' ? 'none' : 'properties')}
+          className={`flex flex-col items-center gap-1 py-1 px-4 rounded-lg text-xs font-semibold transition ${
+            mobileDrawer === 'properties' ? 'text-cyan-400 bg-slate-800' : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <span className="text-base">⚙️</span>
+          <span>Properties</span>
+        </button>
+      </div>
+
+      
+      {/* MOBILE SLIDE-UP DRAWER OVERLAY */}
+      {mobileDrawer !== 'none' && (
+        <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end bg-black/60 backdrop-blur-xs transition-opacity">
+          {/* Backdrop dismiss touch area */}
+          <div className="flex-1" onClick={() => setMobileDrawer('none')} />
+
+          <div className="bg-slate-900 border-t border-slate-800 rounded-t-2xl max-h-[75vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-200">
+            {/* Drawer Drag Handle & Close Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800 shrink-0">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                {mobileDrawer === 'assets' ? 'Data & Assets' : 'Properties'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setMobileDrawer('none')}
+                className="p-1 rounded-md text-slate-400 hover:text-white bg-slate-800/60 hover:bg-slate-800 transition"
+                aria-label="Close drawer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Scrollable Content inside Drawer */}
+            <div className="p-4 overflow-y-auto space-y-4">
+              {mobileDrawer === 'assets' && (
+              <div className="flex flex-col gap-3.5 pb-12">
+                <p className="text-xs text-slate-400">Use the desktop view for full layer drag & drop, or pick starter templates and assets below.</p>
+              </div>
+              )}
+              {mobileDrawer === 'properties' && (
+              <div className="flex flex-col gap-3.5 pb-12">
+                <p className="text-xs text-slate-400">Select an element on canvas to modify its properties.</p>
+              </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 3. MODALS & OVERLAYS */}
       {/* Scope Export Modal */}
