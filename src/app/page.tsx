@@ -1792,8 +1792,12 @@ export default function Home() {
 
     if (canvas && fb) {
       const snap = gridSnapRef.current || 1;
-      const rawLeft = 80 + Math.random() * 50;
-      const rawTop = 80 + Math.random() * 50;
+      const cvs = fabricCanvasRef.current;
+      const rect = cvs?.lowerCanvasEl?.getBoundingClientRect();
+      const centerX = rect ? (window.innerWidth / 2) - rect.left : 80;
+      const centerY = rect ? (window.innerHeight / 2) - rect.top : 80;
+      const rawLeft = centerX + (Math.random() * 40 - 20);
+      const rawTop = centerY + (Math.random() * 40 - 20);
       const templateTag = `{{${headerName}}}`;
       let initialText = templateTag;
 
