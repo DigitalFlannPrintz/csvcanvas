@@ -17,6 +17,10 @@ export interface ConditionalRule {
   color?: string;
   isBold?: boolean;
   isItalic?: boolean;
+  hideElement?: boolean;
+  backgroundColor?: string;
+  fontSize?: number;
+  textTransform?: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
 }
 
 export interface CanvasTextData {
@@ -484,6 +488,10 @@ export async function generateVDP(
         let isBold = field.fontWeight === "bold" || field.fontWeight === 700 || field.fontWeight === "700";
         let isItalic = field.fontStyle === "italic";
 
+        let shouldHide = false;
+        let overrideFontSize: number | undefined = undefined;
+        let ruleTextTransform: 'none' | 'uppercase' | 'lowercase' | 'capitalize' = 'none';
+
         if (field.rules && field.rules.length > 0) {
           for (let rk = 0; rk < field.rules.length; rk++) {
             const rule = field.rules[rk];
@@ -491,15 +499,26 @@ export async function generateVDP(
               if (rule.color) effectiveColor = rule.color;
               if (rule.isBold !== undefined) isBold = rule.isBold;
               if (rule.isItalic !== undefined) isItalic = rule.isItalic;
+              if (rule.hideElement) shouldHide = true;
+              if (rule.fontSize) overrideFontSize = rule.fontSize;
+              if (rule.textTransform) ruleTextTransform = rule.textTransform;
             }
           }
         }
 
-        if (field.isUppercase) {
-          actualText = actualText.toUpperCase();
+        if (shouldHide) {
+          continue;
         }
 
-        const effectiveFontSize = field.fontSize * scaleFactor;
+        if (ruleTextTransform === "uppercase" || field.isUppercase) {
+          actualText = actualText.toUpperCase();
+        } else if (ruleTextTransform === "lowercase") {
+          actualText = actualText.toLowerCase();
+        } else if (ruleTextTransform === "capitalize") {
+          actualText = actualText.replace(/\b\w/g, (c: string) => c.toUpperCase());
+        }
+
+        const effectiveFontSize = (overrideFontSize || field.fontSize) * scaleFactor;
         const boxWidth = (field.width || 0) * scaleFactor;
         const padOffset = (field.padding || 0) * scaleFactor;
         const basePdfX = originX + (field.x * scaleFactor) + padOffset;

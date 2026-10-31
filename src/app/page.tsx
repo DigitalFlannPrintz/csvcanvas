@@ -865,6 +865,14 @@ export default function Home() {
       let effectiveColor = obj.tagColor || obj.fill || '#0f172a';
       let effectiveBold = obj.fontWeight === 'bold' || obj.fontWeight === 700 || obj.fontWeight === '700';
       let effectiveItalic = obj.fontStyle === 'italic';
+      let shouldHide = false;
+      let effectiveBgColor = obj.baseBackgroundColor ?? obj.backgroundColor ?? '';
+      let effectiveFontSize = obj.baseFontSize || obj.fontSize || 22;
+      let ruleCaseTransform = 'none';
+
+      if (!obj.baseFontSize) {
+        obj.baseFontSize = obj.fontSize;
+      }
 
       if (enablePreview) {
         displayText = obj.rawTemplateTag.replace(/\{\{\s*(\w+)\s*\}\}/g, (_: string, colName: string) => {
@@ -877,18 +885,29 @@ export default function Home() {
               if (rule.color) effectiveColor = rule.color;
               if (rule.isBold !== undefined) effectiveBold = rule.isBold;
               if (rule.isItalic !== undefined) effectiveItalic = rule.isItalic;
+              if (rule.hideElement) shouldHide = true;
+              if (rule.backgroundColor !== undefined) effectiveBgColor = rule.backgroundColor;
+              if (rule.fontSize) effectiveFontSize = rule.fontSize;
+              if (rule.textTransform) ruleCaseTransform = rule.textTransform;
             }
           }
         }
       }
 
-      if (obj.isUppercase) {
+      if (ruleCaseTransform === 'uppercase' || obj.isUppercase) {
         displayText = displayText.toUpperCase();
+      } else if (ruleCaseTransform === 'lowercase') {
+        displayText = displayText.toLowerCase();
+      } else if (ruleCaseTransform === 'capitalize') {
+        displayText = displayText.replace(/\b\w/g, (c: string) => c.toUpperCase());
       }
 
       obj.set({
+        visible: !shouldHide,
         text: displayText,
         fill: effectiveColor,
+        backgroundColor: effectiveBgColor || '',
+        fontSize: effectiveFontSize,
         fontWeight: effectiveBold ? 'bold' : 'normal',
         fontStyle: effectiveItalic ? 'italic' : 'normal',
       });
@@ -1074,6 +1093,10 @@ export default function Home() {
       color: '#dc2626',
       isBold: true,
       isItalic: false,
+      hideElement: false,
+      backgroundColor: '',
+      fontSize: undefined,
+      textTransform: 'none',
     };
     const updated = [...currentTagRules, newRule];
     setCurrentTagRules(updated);
@@ -3585,37 +3608,104 @@ export default function Home() {
                       />
                     </div>
 
-                    <div className="flex items-center gap-3 pt-1 border-t border-slate-800 text-xs">
-                      <span className="font-semibold text-slate-400">Then format:</span>
+                    <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-slate-800 text-xs">
+                      <span className="font-semibold text-slate-400 shrink-0">Then format:</span>
 
-                      <div className="flex items-center gap-1.5">
-                        <label className="text-[11px] text-slate-400 font-medium">Color:</label>
+                      {/* Text Color */}
+                      <div className="flex items-center gap-1" title="Text Color">
+                        <label className="text-[11px] text-slate-400 font-medium">Text:</label>
                         <input
                           type="color"
                           value={rule.color || '#dc2626'}
                           onChange={(e) => handleUpdateRule(rule.id, { color: e.target.value })}
-                          className="w-6 h-6 p-0 border border-slate-800 rounded cursor-pointer"
+                          className="w-5 h-5 p-0 border border-slate-800 rounded cursor-pointer bg-transparent"
                         />
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateRule(rule.id, { isBold: !rule.isBold })}
-                        className={`px-2 py-0.5 rounded border font-bold text-xs ${
-                          rule.isBold ? 'bg-cyan-500 text-slate-950 border-cyan-400' : 'bg-slate-900 text-slate-300 border-slate-800'
-                        }`}
-                      >
-                        B
-                      </button>
+                      {/* Highlight / Background Color */}
+                      <div className="flex items-center gap-1" title="Background / Highlight Fill">
+                        <label className="text-[11px] text-slate-400 font-medium">BG:</label>
+                        <input
+                          type="color"
+                          value={rule.backgroundColor || '#000000'}
+                          onChange={(e) => handleUpdateRule(rule.id, { backgroundColor: e.target.value })}
+                          className="w-5 h-5 p-0 border border-slate-800 rounded cursor-pointer bg-transparent"
+                        />
+                        {rule.backgroundColor && (
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateRule(rule.id, { backgroundColor: '' })}
+                            className="text-[10px] text-slate-500 hover:text-rose-400"
+                            title="Clear background"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
 
+                      {/* Bold & Italic */}
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateRule(rule.id, { isBold: !rule.isBold })}
+                          className={`w-6 h-6 flex items-center justify-center rounded border font-bold text-xs ${
+                            rule.isBold ? 'bg-cyan-500 text-slate-950 border-cyan-400' : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700'
+                          }`}
+                          title="Bold"
+                        >
+                          B
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateRule(rule.id, { isItalic: !rule.isItalic })}
+                          className={`w-6 h-6 flex items-center justify-center rounded border italic font-serif font-bold text-xs ${
+                            rule.isItalic ? 'bg-cyan-500 text-slate-950 border-cyan-400' : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700'
+                          }`}
+                          title="Italic"
+                        >
+                          I
+                        </button>
+                      </div>
+
+                      {/* Font Size Override */}
+                      <div className="flex items-center gap-1" title="Font size override">
+                        <label className="text-[11px] text-slate-400 font-medium">Size:</label>
+                        <input
+                          type="number"
+                          placeholder="Auto"
+                          value={rule.fontSize ?? ''}
+                          onChange={(e) => handleUpdateRule(rule.id, { fontSize: e.target.value ? Number(e.target.value) : undefined })}
+                          className="w-12 px-1 py-0.5 bg-slate-900 border border-slate-800 rounded text-xs text-slate-200 text-center font-mono"
+                          min="6"
+                          max="144"
+                        />
+                      </div>
+
+                      {/* Text Case Transform */}
+                      <select
+                        value={rule.textTransform || 'none'}
+                        onChange={(e) => handleUpdateRule(rule.id, { textTransform: e.target.value as any })}
+                        className="px-2 py-1 bg-slate-900 border border-slate-800 text-slate-200 rounded text-xs focus:ring-1 focus:ring-cyan-500 font-medium"
+                        title="Text casing transform"
+                      >
+                        <option value="none">Case: Default</option>
+                        <option value="uppercase">UPPERCASE</option>
+                        <option value="lowercase">lowercase</option>
+                        <option value="capitalize">Title Case</option>
+                      </select>
+
+                      {/* Hide Element Toggle */}
                       <button
                         type="button"
-                        onClick={() => handleUpdateRule(rule.id, { isItalic: !rule.isItalic })}
-                        className={`px-2 py-0.5 rounded border italic font-serif font-bold text-xs ${
-                          rule.isItalic ? 'bg-cyan-500 text-slate-950 border-cyan-400' : 'bg-slate-900 text-slate-300 border-slate-800'
+                        onClick={() => handleUpdateRule(rule.id, { hideElement: !rule.hideElement })}
+                        className={`px-2 py-1 rounded border text-xs font-semibold flex items-center gap-1 transition ${
+                          rule.hideElement
+                            ? 'bg-rose-500/20 text-rose-300 border-rose-500/60'
+                            : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
                         }`}
+                        title="Omit or hide element when condition is met"
                       >
-                        I
+                        {rule.hideElement ? '🚫 Hidden' : '👁️ Show'}
                       </button>
                     </div>
                   </div>
