@@ -2271,7 +2271,7 @@ export default function Home() {
                   <button
                     key={tmpl.title}
                     type="button"
-                    onClick={() => { if (typeof setShowTemplateModal === "function") setShowTemplateModal(true); }}
+                    onClick={() => { const fi = document.getElementById("template-upload-input"); if (fi) fi.click(); }}
                     className="flex flex-col items-center p-3.5 rounded-xl border border-slate-800 bg-slate-950/60 hover:bg-slate-800/60 hover:border-cyan-500/50 transition cursor-pointer text-center group"
                   >
                     <span className="text-2xl mb-1 group-hover:scale-110 transition-transform">{tmpl.icon}</span>
@@ -2429,7 +2429,7 @@ export default function Home() {
                     accept=".pdf,.png,.jpg,.jpeg,.webp"
                     className="hidden"
                     onChange={(e) => {
-                      if (typeof handleTemplateUpload === "function") handleTemplateUpload(e);
+                      if (typeof handleTemplateUploadFile === "function") handleTemplateUploadFile(e.target.files?.[0] as File);
                     }}
                   />
                 </label>
