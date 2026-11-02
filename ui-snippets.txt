@@ -1,0 +1,363 @@
+--- TOOL DOCK ---
+        {/* 1. VERTICAL TOOL DOCK */}
+        <nav className="hidden lg:flex flex-col w-[72px] shrink-0 border-r border-slate-800 bg-slate-950 items-center py-5 gap-6 z-20">
+          {[
+            { id: 'templates', label: 'Templates', icon: '◫' },
+            { id: 'data', label: 'Data & CSV', icon: '▤' },
+            { id: 'text', label: 'Text', icon: 'T' },
+            { id: 'uploads', label: 'Uploads', icon: '☁' },
+            { id: 'tools', label: 'Tools', icon: '✎' }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveSidebarTab(tab.id as any)}
+              className={`flex flex-col items-center gap-1.5 w-full transition-colors ${
+                activeSidebarTab === tab.id ? 'text-cyan-400' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <span className="text-2xl mb-0.5">{tab.icon}</span>
+              <span className="text-[10px] font-medium tracking-wide">{tab.label}</span>
+            </button>
+          ))}
+        </nav>
+
+        {/* 2. FLYOUT PANEL (Dynamic Content) */}
+        <aside className="hidden lg:flex flex-col w-72 shrink-0 border-r border-slate-800/80 bg-slate-900/60 justify-start overflow-y-auto p-4 gap-4 animate-in slide-in-from-left-4 duration-200">
+          
+          {/* TAB: TEMPLATES */}
+          {activeSidebarTab === 'templates' && (
+            <div className="flex flex-col gap-4">
+              <div className="p-3 bg-slate-900/80 border border-slate-800 rounded-xl flex flex-col gap-3">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Templates</span>
+                
+                <label className="py-2.5 px-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-lg transition shadow-md shadow-indigo-900/20 cursor-pointer flex items-center justify-center gap-2 active:scale-95">
+                  <span>📄</span>
+                  <span>Upload PDF Template</span>
+                  <input type="file" hidden accept="application/pdf" onChange={handlePdfUpload} />
+                </label>
+
+                <label className="py-2.5 px-3 bg-slate-950 hover:bg-slate-800 text-slate-200 border border-slate-700 font-semibold text-xs rounded-lg transition cursor-pointer flex items-center justify-center gap-2 active:scale-95">
+                  <span>🖼</span>
+                  <span>Upload Img Template</span>
+                  <input type="file" hidden accept="image/*" onChange={handleTemplateUpload} />
+                </label>
+              </div>
+
+              <div className="pt-2 border-t border-slate-800/80">
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={handleSaveTemplatePreset}
+                    className="py-1 px-2 bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800 text-[11px] font-medium rounded-lg transition cursor-pointer flex flex-col items-center justify-center gap-1 hover:text-white"
+                  >
+                    <span className="text-sm">💾</span> Save Preset
+                  </button>
+                  <label className="py-1 px-2 bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800 text-[11px] font-medium rounded-lg transition cursor-pointer flex flex-col items-center justify-center gap-1 hover:text-white">
+                    <span className="text-sm">📂</span> Load Preset
+                    <input type="file" hidden accept=".json" onChange={handleLoadTemplatePreset} />
+                  </label>
+                </div>
+              </div>
+            </div>
+
+--- LEFT SIDEBAR (TABLE) ---
+'use client';
+
+import { useEffect, useRef, useState, useMemo } from 'react';
+import Papa from 'papaparse';
+import bwipjs from 'bwip-js';
+import {
+  generateVDP,
+  CanvasTextData,
+  CanvasBarcodeData,
+  CanvasStaticImageData,
+  ConditionalRule,
+  evaluateCondition,
+  parseRangeString,
+} from '@/utils/pdfGenerator';
+
+const SYSTEM_FONT_GROUPS = [
+  {
+    category: 'Standard Sans-Serif',
+    fonts: [
+      { label: 'Arial', value: 'Arial' },
+      { label: 'Helvetica', value: 'Helvetica' },
+      { label: 'Verdana', value: 'Verdana' },
+      { label: 'Trebuchet MS', value: 'Trebuchet MS' },
+      { label: 'Gill Sans', value: 'Gill Sans' },
+      { label: 'Segoe UI', value: 'Segoe UI' },
+    ],
+  },
+  {
+    category: 'Standard Serif',
+    fonts: [
+      { label: 'Times New Roman', value: 'Times New Roman' },
+      { label: 'Georgia', value: 'Georgia' },
+      { label: 'Garamond', value: 'Garamond' },
+      { label: 'Palatino', value: 'Palatino' },
+      { label: 'Baskerville', value: 'Baskerville' },
+    ],
+  },
+  {
+    category: 'Standard Monospace',
+    fonts: [
+      { label: 'Courier New', value: 'Courier New' },
+      { label: 'Courier', value: 'Courier' },
+      { label: 'Lucida Console', value: 'Lucida Console' },
+      { label: 'Monaco', value: 'Monaco' },
+    ],
+  },
+  {
+    category: 'Standard Display & Script',
+    fonts: [
+      { label: 'Impact', value: 'Impact' },
+      { label: 'Comic Sans MS', value: 'Comic Sans MS' },
+      { label: 'Symbol', value: 'Symbol' },
+      { label: 'ZapfDingbats', value: 'ZapfDingbats' },
+    ],
+  },
+  {
+    category: 'Google Fonts (On-Demand)',
+    fonts: [
+      {
+        label: 'Playfair Display',
+        value: 'Playfair_Display',
+        url: 'https://cdn.jsdelivr.net/fontsource/fonts/playfair-display@latest/latin-400-normal.ttf',
+      },
+      {
+        label: 'Montserrat',
+        value: 'Montserrat',
+        url: 'https://cdn.jsdelivr.net/fontsource/fonts/montserrat@latest/latin-400-normal.ttf',
+      },
+      {
+        label: 'Cinzel',
+        value: 'Cinzel',
+        url: 'https://cdn.jsdelivr.net/fontsource/fonts/cinzel@latest/latin-400-normal.ttf',
+      },
+      {
+        label: 'Dancing Script',
+        value: 'Dancing_Script',
+        url: 'https://cdn.jsdelivr.net/fontsource/fonts/dancing-script@latest/latin-400-normal.ttf',
+      },
+    ],
+  },
+];
+
+const BASE_CANVAS_WIDTH = 850;
+const ZOOM_LEVELS = [
+  { label: '50%', scale: 0.5 },
+  { label: '100%', scale: 1.0 },
+  { label: '150%', scale: 1.5 },
+  { label: '200%', scale: 2.0 },
+];
+
+const RULER_SIZE = 28;
+const ROWS_PER_TABLE_PAGE = 8;
+
+export default function Home() {
+  const [theme, setTheme] = useState('dark');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const fabricCanvasRef = useRef<any>(null);
+  const fabricModuleRef = useRef<any>(null);
+
+  const [isHandToolActive, setIsHandToolActive] = useState<boolean>(false);
+  const isHandToolActiveRef = useRef<boolean>(false);
+  const isSpacePressedRef = useRef<boolean>(false);
+  const isPanningRef = useRef<boolean>(false);
+  const panStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  const [totalPages, setTotalPages] = useState<number>(1);
+  const [currentPageIndex, setCurrentPageIndex] = useState<number>(0);
+  const currentPageIndexRef = useRef<number>(0);
+  const pdfDocProxyRef = useRef<any>(null);
+  const pagesStorageRef = useRef<Record<number, any[]>>({});
+
+  const undoStackRef = useRef<string[]>([]);
+  const redoStackRef = useRef<string[]>([]);
+  const isHistoryLockedRef = useRef(false);
+
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+  const [selectedTag, setSelectedTag] = useState<any>(null);
+  const [selectedBarcodeColor, setSelectedBarcodeColor] = useState<string>('#000000');
+  const [selectedImage, setSelectedImage] = useState<any>(null);
+  const [selectedBarcode, setSelectedBarcode] = useState<any>(null);
+  const [selectedImageMask, setSelectedImageMask] = useState<'circle' | 'rounded' | 'square' | 'none'>('none');
+  const [hasSelection, setHasSelection] = useState<boolean>(false);
+  const [transformX, setTransformX] = useState<number>(0);
+  const [transformY, setTransformY] = useState<number>(0);
+  const [transformW, setTransformW] = useState<number>(0);
+  const [transformH, setTransformH] = useState<number>(0);
+  const [transformAngle, setTransformAngle] = useState<number>(0);
+  const [isRatioLocked, setIsRatioLocked] = useState<boolean>(false);
+
+  const [canvasWidth, setCanvasWidth] = useState<number>(850);
+  const [canvasHeight, setCanvasHeight] = useState<number>(1100);
+  const [displayScale, setDisplayScale] = useState<number>(1);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const screenW = window.innerWidth;
+      if (screenW >= 1024) {
+        setDisplayScale(1);
+      } else {
+        const padding = 32;
+        const scale = (screenW - padding) / canvasWidth;
+        setDisplayScale(Math.min(scale, 1));
+      }
+    };
+    
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+
+--- CANVAS ---
+'use client';
+
+import { useEffect, useRef, useState, useMemo } from 'react';
+import Papa from 'papaparse';
+import bwipjs from 'bwip-js';
+import {
+  generateVDP,
+  CanvasTextData,
+  CanvasBarcodeData,
+  CanvasStaticImageData,
+  ConditionalRule,
+  evaluateCondition,
+  parseRangeString,
+} from '@/utils/pdfGenerator';
+
+const SYSTEM_FONT_GROUPS = [
+  {
+    category: 'Standard Sans-Serif',
+    fonts: [
+      { label: 'Arial', value: 'Arial' },
+      { label: 'Helvetica', value: 'Helvetica' },
+      { label: 'Verdana', value: 'Verdana' },
+      { label: 'Trebuchet MS', value: 'Trebuchet MS' },
+      { label: 'Gill Sans', value: 'Gill Sans' },
+      { label: 'Segoe UI', value: 'Segoe UI' },
+    ],
+  },
+  {
+    category: 'Standard Serif',
+    fonts: [
+      { label: 'Times New Roman', value: 'Times New Roman' },
+      { label: 'Georgia', value: 'Georgia' },
+      { label: 'Garamond', value: 'Garamond' },
+      { label: 'Palatino', value: 'Palatino' },
+      { label: 'Baskerville', value: 'Baskerville' },
+    ],
+  },
+  {
+    category: 'Standard Monospace',
+    fonts: [
+      { label: 'Courier New', value: 'Courier New' },
+      { label: 'Courier', value: 'Courier' },
+      { label: 'Lucida Console', value: 'Lucida Console' },
+      { label: 'Monaco', value: 'Monaco' },
+    ],
+  },
+  {
+    category: 'Standard Display & Script',
+    fonts: [
+      { label: 'Impact', value: 'Impact' },
+      { label: 'Comic Sans MS', value: 'Comic Sans MS' },
+      { label: 'Symbol', value: 'Symbol' },
+      { label: 'ZapfDingbats', value: 'ZapfDingbats' },
+    ],
+  },
+  {
+    category: 'Google Fonts (On-Demand)',
+    fonts: [
+      {
+        label: 'Playfair Display',
+        value: 'Playfair_Display',
+        url: 'https://cdn.jsdelivr.net/fontsource/fonts/playfair-display@latest/latin-400-normal.ttf',
+      },
+      {
+        label: 'Montserrat',
+        value: 'Montserrat',
+        url: 'https://cdn.jsdelivr.net/fontsource/fonts/montserrat@latest/latin-400-normal.ttf',
+      },
+      {
+        label: 'Cinzel',
+        value: 'Cinzel',
+        url: 'https://cdn.jsdelivr.net/fontsource/fonts/cinzel@latest/latin-400-normal.ttf',
+      },
+      {
+        label: 'Dancing Script',
+        value: 'Dancing_Script',
+        url: 'https://cdn.jsdelivr.net/fontsource/fonts/dancing-script@latest/latin-400-normal.ttf',
+      },
+    ],
+  },
+];
+
+const BASE_CANVAS_WIDTH = 850;
+const ZOOM_LEVELS = [
+  { label: '50%', scale: 0.5 },
+  { label: '100%', scale: 1.0 },
+  { label: '150%', scale: 1.5 },
+  { label: '200%', scale: 2.0 },
+];
+
+const RULER_SIZE = 28;
+const ROWS_PER_TABLE_PAGE = 8;
+
+export default function Home() {
+  const [theme, setTheme] = useState('dark');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const fabricCanvasRef = useRef<any>(null);
+  const fabricModuleRef = useRef<any>(null);
+
+  const [isHandToolActive, setIsHandToolActive] = useState<boolean>(false);
+  const isHandToolActiveRef = useRef<boolean>(false);
+  const isSpacePressedRef = useRef<boolean>(false);
+  const isPanningRef = useRef<boolean>(false);
+  const panStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  const [totalPages, setTotalPages] = useState<number>(1);
+  const [currentPageIndex, setCurrentPageIndex] = useState<number>(0);
+  const currentPageIndexRef = useRef<number>(0);
+  const pdfDocProxyRef = useRef<any>(null);
+  const pagesStorageRef = useRef<Record<number, any[]>>({});
+
+  const undoStackRef = useRef<string[]>([]);
+  const redoStackRef = useRef<string[]>([]);
+  const isHistoryLockedRef = useRef(false);
+
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+  const [selectedTag, setSelectedTag] = useState<any>(null);
+  const [selectedBarcodeColor, setSelectedBarcodeColor] = useState<string>('#000000');
+  const [selectedImage, setSelectedImage] = useState<any>(null);
+  const [selectedBarcode, setSelectedBarcode] = useState<any>(null);
+  const [selectedImageMask, setSelectedImageMask] = useState<'circle' | 'rounded' | 'square' | 'none'>('none');
+  const [hasSelection, setHasSelection] = useState<boolean>(false);
+  const [transformX, setTransformX] = useState<number>(0);
+  const [transformY, setTransformY] = useState<number>(0);
+  const [transformW, setTransformW] = useState<number>(0);
+  const [transformH, setTransformH] = useState<number>(0);
+  const [transformAngle, setTransformAngle] = useState<number>(0);
+  const [isRatioLocked, setIsRatioLocked] = useState<boolean>(false);
+
+  const [canvasWidth, setCanvasWidth] = useState<number>(850);
+  const [canvasHeight, setCanvasHeight] = useState<number>(1100);
+  const [displayScale, setDisplayScale] = useState<number>(1);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const screenW = window.innerWidth;
+      if (screenW >= 1024) {
+        setDisplayScale(1);
+      } else {
+        const padding = 32;
+        const scale = (screenW - padding) / canvasWidth;
+        setDisplayScale(Math.min(scale, 1));
+      }
+    };
+    
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);

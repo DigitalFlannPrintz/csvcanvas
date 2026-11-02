@@ -92,6 +92,8 @@ const RULER_SIZE = 28;
 const ROWS_PER_TABLE_PAGE = 8;
 
 export default function Home() {
+  const [activeTab, setActiveTab] = useState<'templates' | 'data' | 'text' | 'uploads' | 'presets'>('templates');
+  const [showDataTable, setShowDataTable] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const fabricCanvasRef = useRef<any>(null);
   const fabricModuleRef = useRef<any>(null);
@@ -2152,179 +2154,323 @@ export default function Home() {
 
       {/* 2. THREE-PANE MAIN WORKBENCH */}
       <div className="flex flex-1 min-h-0 w-full overflow-hidden">
-        {/* LEFT PANEL: Ingestion, CSV Chips & Elements (w-80) */}
-        <aside className="hidden lg:flex flex-col w-80 shrink-0 border-r border-slate-800/80 bg-slate-900/40 justify-between overflow-y-auto p-3.5 gap-4">
-          <div className="flex flex-col gap-3.5">
-            <div className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 px-1">
-              Data & Assets
-            </div>
+        {/* ================================================================= */}
+        {/* EXACT LEFT TOOL DOCK (5 TABS)                                     */}
+        {/* ================================================================= */}
+        <aside className="w-[78px] shrink-0 border-r border-slate-800/80 bg-slate-950 flex flex-col items-center py-4 select-none gap-6 z-20">
+          {[
+            {
+              id: "templates",
+              label: "Templates",
+              icon: (
+                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="4" />
+                  <line x1="3" y1="9" x2="21" y2="9" />
+                  <line x1="9" y1="9" x2="9" y2="21" />
+                </svg>
+              )
+            },
+            {
+              id: "data",
+              label: "Data & CSV",
+              icon: (
+                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="3" />
+                  <line x1="3" y1="9" x2="21" y2="9" />
+                  <line x1="3" y1="15" x2="21" y2="15" />
+                  <line x1="12" y1="3" x2="12" y2="21" />
+                </svg>
+              )
+            },
+            {
+              id: "text",
+              label: "Text",
+              icon: (
+                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="4 7 4 4 20 4 20 7" />
+                  <line x1="9" y1="20" x2="15" y2="20" />
+                  <line x1="12" y1="4" x2="12" y2="20" />
+                </svg>
+              )
+            },
+            {
+              id: "uploads",
+              label: "Uploads",
+              icon: (
+                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+                  <path d="M12 12v9" />
+                  <path d="m8 16 4-4 4 4" />
+                </svg>
+              )
+            },
+            {
+              id: "presets",
+              label: "Presets",
+              icon: (
+                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+              )
+            }
+          ].map(tab => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id as any)}
+                className="group flex flex-col items-center justify-center w-full transition-all cursor-pointer select-none"
+              >
+                <div
+                  className={
+                    "w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-200 " +
+                    (isActive
+                      ? "border border-cyan-400/90 bg-cyan-950/40 text-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.25)]"
+                      : "bg-transparent text-slate-400 group-hover:text-slate-200 group-hover:bg-slate-900/50")
+                  }
+                >
+                  {tab.icon}
+                </div>
+                <span
+                  className={
+                    "text-[11px] mt-1.5 tracking-tight transition-colors text-center " +
+                    (isActive
+                      ? "font-bold text-cyan-400"
+                      : "font-medium text-slate-400 group-hover:text-slate-200")
+                  }
+                >
+                  {tab.label}
+                </span>
+              </button>
+            );
+          })}
+        </aside>
 
-            {/* CARD 1: DOCUMENT & DATA SOURCES */}
-            <div className="p-3 bg-slate-900/80 border border-slate-800 rounded-xl flex flex-col gap-2.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">File Sources</span>
-              <div className="flex flex-col gap-2">
-                <label className="w-full py-2 px-3 bg-slate-950 hover:bg-slate-850 text-slate-200 border border-slate-800 hover:border-cyan-500/50 font-semibold text-xs rounded-lg transition cursor-pointer flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-cyan-400">📄</span>
-                    <span>Template (PDF/Img)</span>
-                  </div>
-                  {pdfBytes ? (
-                    <span className="text-[10px] bg-cyan-950 text-cyan-300 border border-cyan-800 px-1.5 py-0.5 rounded font-bold">Loaded</span>
-                  ) : (
-                    <span className="text-[10px] text-slate-500 font-medium">Browse...</span>
-                  )}
-                  <input
-                    type="file"
-                    hidden
-                    accept="application/pdf,image/png,image/jpeg,image/webp"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (file) await handleTemplateUploadFile(file);
-                    }}
-                  />
-                </label>
-
-                <label className="w-full py-2 px-3 bg-slate-950 hover:bg-slate-850 text-slate-200 border border-slate-800 hover:border-emerald-500/50 font-semibold text-xs rounded-lg transition cursor-pointer flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-emerald-400">📊</span>
-                    <span>Data CSV</span>
-                  </div>
-                  {csvData.length > 0 ? (
-                    <span className="text-[10px] bg-emerald-950 text-emerald-300 border border-emerald-800 px-1.5 py-0.5 rounded font-bold">{csvData.length} rows</span>
-                  ) : (
-                    <span className="text-[10px] text-slate-500 font-medium">Browse...</span>
-                  )}
-                  <input type="file" hidden accept=".csv" onChange={handleCsvUpload} />
-                </label>
+        {/* ================================================================= */}
+        {/* MODULAR LEFT DRAWER                                               */}
+        {/* ================================================================= */}
+        <div className="w-80 shrink-0 border-r border-slate-800 bg-slate-900/90 backdrop-blur-md flex flex-col overflow-hidden z-10 select-none">
+          {/* 1. TEMPLATES */}
+          {activeTab === "templates" && (
+            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+              <div>
+                <h3 className="text-sm font-bold text-white tracking-tight">Templates</h3>
+                <p className="text-xs text-slate-400">Choose a layout or start from scratch</p>
               </div>
-            </div>
 
-            {/* CARD 2: INSERT STATIC ELEMENTS */}
-            <div className="p-3 bg-slate-900/80 border border-slate-800 rounded-xl flex flex-col gap-2.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Insert Elements</span>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2.5">
+                {[
+                  { title: "Certificate", desc: "Standard Award", icon: "🎓" },
+                  { title: "Event Badge", desc: "Conference ID", icon: "🎫" },
+                  { title: "Ticket", desc: "Numbered Pass", icon: "🎟️" },
+                  { title: "ID Card", desc: "Employee Badge", icon: "🪪" }
+                ].map((tmpl) => (
+                  <button
+                    key={tmpl.title}
+                    type="button"
+                    onClick={() => { if (typeof setShowTemplateModal === "function") setShowTemplateModal(true); }}
+                    className="flex flex-col items-center p-3.5 rounded-xl border border-slate-800 bg-slate-950/60 hover:bg-slate-800/60 hover:border-cyan-500/50 transition cursor-pointer text-center group"
+                  >
+                    <span className="text-2xl mb-1 group-hover:scale-110 transition-transform">{tmpl.icon}</span>
+                    <span className="text-xs font-semibold text-slate-200 group-hover:text-cyan-300">{tmpl.title}</span>
+                    <span className="text-[10px] text-slate-500">{tmpl.desc}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="pt-2 border-t border-slate-800">
                 <button
                   type="button"
-                  onClick={() => addFreeformText('Double-click to edit text...')}
-                  className="py-2 px-2.5 bg-slate-950 hover:bg-slate-850 text-slate-200 border border-slate-800 hover:border-cyan-500/50 font-semibold text-xs rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-95"
+                  onClick={() => {
+                    const fileInput = document.getElementById("template-upload-input");
+                    if (fileInput) fileInput.click();
+                  }}
+                  className="w-full py-2.5 px-4 bg-cyan-950/60 hover:bg-cyan-900/80 text-cyan-300 border border-cyan-800/80 font-bold text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-2"
                 >
-                  <span className="text-cyan-400 font-bold text-xs">T</span>
-                  <span>+ Text Box</span>
+                  <span>📁</span>
+                  <span>Browse Template File</span>
                 </button>
-
-                <label className="py-2 px-2.5 bg-slate-950 hover:bg-slate-800 text-slate-200 border border-slate-800 hover:border-sky-500/50 font-semibold text-xs rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-95">
-                  <span>🖼</span>
-                  <span>+ Image</span>
-                  <input type="file" hidden accept="image/*" onChange={handleStaticImageUpload} />
-                </label>
               </div>
             </div>
+          )}
 
-            {/* CARD 3: DYNAMIC CSV FIELDS & BARCODES */}
-            {csvHeaders.length > 0 ? (
-              <div className="p-3 bg-slate-900/80 border border-slate-800 rounded-xl flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Dynamic Fields</span>
-                  <span className="text-[10px] text-cyan-400 font-semibold">Page {currentPageIndex + 1}</span>
+          {/* 2. DATA & CSV */}
+          {activeTab === "data" && (
+            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+              <div>
+                <h3 className="text-sm font-bold text-white tracking-tight">Data Source</h3>
+                <p className="text-xs text-slate-400">Upload CSV and place dynamic field tags</p>
+              </div>
+
+              <label className="border border-dashed border-slate-700 hover:border-cyan-400 bg-slate-950/60 p-4 rounded-xl flex flex-col items-center justify-center cursor-pointer transition">
+                <span className="text-2xl mb-1">📄</span>
+                <span className="text-xs font-semibold text-slate-200">Drag & Drop CSV</span>
+                <span className="text-[10px] text-slate-500">or click to browse</span>
+                <input
+                  type="file"
+                  accept=".csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (typeof handleCsvUpload === "function") handleCsvUpload(e);
+                  }}
+                />
+              </label>
+
+              {typeof csvHeaders !== "undefined" && csvHeaders.length > 0 && (
+                <div className="flex flex-col gap-3 pt-2 border-t border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Dynamic Fields</span>
+                    {typeof currentPageIndex !== "undefined" && (
+                      <span className="text-[10px] text-cyan-400 font-semibold">Page {currentPageIndex + 1}</span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {csvHeaders.map((header, idx) => {
+                      const colorPalette = [
+                        "bg-cyan-950/60 text-cyan-300 border-cyan-800/60 hover:border-cyan-400",
+                        "bg-rose-950/60 text-rose-300 border-rose-800/60 hover:border-rose-400",
+                        "bg-amber-950/60 text-amber-300 border-amber-800/60 hover:border-amber-400",
+                        "bg-emerald-950/60 text-emerald-300 border-emerald-800/60 hover:border-emerald-400",
+                        "bg-purple-950/60 text-purple-300 border-purple-800/60 hover:border-purple-400",
+                        "bg-blue-950/60 text-blue-300 border-blue-800/60 hover:border-blue-400"
+                      ];
+                      const colorClass = colorPalette[idx % colorPalette.length];
+                      return (
+                        <button
+                          key={header}
+                          type="button"
+                          onClick={() => { if (typeof addTagToCanvas === "function") addTagToCanvas(header); }}
+                          className={"px-3 py-1.5 text-xs font-semibold border rounded-lg transition cursor-pointer flex items-center gap-1.5 active:scale-95 " + colorClass}
+                        >
+                          <span className="text-[10px] opacity-70">+</span>
+                          <span>{header}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
+              )}
 
-                <div className="flex flex-wrap gap-1.5 pr-1">
-                  {csvHeaders.map((header) => (
+              {/* Codes */}
+              <div className="pt-2 border-t border-slate-800 flex flex-col gap-2.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Generate Code</span>
+                <div className="grid grid-cols-3 gap-2">
+                  {["QR", "128", "EAN"].map(codeType => (
                     <button
-                      key={header}
+                      key={codeType}
                       type="button"
-                      onClick={() => addTagToCanvas(header)}
-                      className="px-2 py-1 text-[11px] bg-slate-950 hover:bg-slate-800 text-cyan-300 font-semibold border border-slate-800 hover:border-cyan-500/50 rounded-md transition cursor-pointer flex items-center gap-1"
+                      className="py-2 text-xs font-bold rounded-lg border border-slate-800 bg-slate-950 hover:bg-slate-800 text-slate-200 transition cursor-pointer text-center"
                     >
-                      <span className="text-cyan-400 font-bold">+</span>
-                      <span>{`{{${header}}}`}</span>
+                      {codeType}
                     </button>
                   ))}
                 </div>
-
-                <div className="pt-2 border-t border-slate-800 flex flex-col gap-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Generate Code:</span>
-                    <select
-                      value={selectedBarcodeCol}
-                      onChange={(e) => setSelectedBarcodeCol(e.target.value)}
-                      className="px-2 py-0.5 text-xs border border-slate-800 rounded bg-slate-950 text-slate-200 font-medium max-w-[130px] focus:outline-none focus:ring-1 focus:ring-cyan-500"
-                    >
-                      {csvHeaders.map((h) => (
-                        <option key={h} value={h}>{h}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => addBarcodeToCanvas(selectedBarcodeCol || csvHeaders[0], 'qrcode')}
-                      className="py-1 px-1.5 text-[11px] font-bold bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/80 rounded-md transition cursor-pointer text-center"
-                    >
-                      + QR
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => addBarcodeToCanvas(selectedBarcodeCol || csvHeaders[0], 'code128')}
-                      className="py-1 px-1.5 text-[11px] font-bold bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/80 rounded-md transition cursor-pointer text-center"
-                    >
-                      + Code 128
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => addBarcodeToCanvas(selectedBarcodeCol || csvHeaders[0], 'code39')}
-                      className="py-1 px-1.5 text-[11px] font-bold bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/80 rounded-md transition cursor-pointer text-center"
-                    >
-                      + Code 39
-                    </button>
-                  </div>
-                </div>
               </div>
-            ) : (
-              <div className="p-3 bg-slate-900/40 border border-dashed border-slate-800 rounded-xl flex flex-col items-center justify-center text-center py-4">
-                <span className="text-[11px] font-semibold text-slate-400">No CSV Data Loaded</span>
-                <span className="text-[10px] text-slate-500 mt-0.5">Upload a CSV to place dynamic tags & barcodes.</span>
-              </div>
-            )}
-
-            {csvData.length > 0 && (
-              <div
-                onClick={() => setIsTableExpanded(!isTableExpanded)}
-                className="p-2.5 bg-slate-900/80 hover:bg-slate-850 border border-slate-800 rounded-xl flex items-center justify-between cursor-pointer select-none transition"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-xs">📊</span>
-                  <span className="text-xs font-bold text-slate-300">View Data Table</span>
-                  <span className="px-1.5 py-0.2 text-[10px] font-semibold bg-emerald-950 text-emerald-300 border border-emerald-800/60 rounded">
-                    {csvData.length}
-                  </span>
-                </div>
-                <span className={`text-xs text-slate-400 transform transition-transform ${isTableExpanded ? 'rotate-180' : ''}`}>
-                  ▼
-                </span>
-              </div>
-            )}
-          </div>
-
-          <div className="pt-2 border-t border-slate-800/80">
-            <div className="grid grid-cols-2 gap-1.5">
-              <button
-                type="button"
-                onClick={handleSaveTemplatePreset}
-                className="py-1 px-2 bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800 text-[11px] font-medium rounded-lg transition cursor-pointer flex items-center justify-center gap-1 hover:text-white"
-              >
-                <span>💾</span> Save Preset
-              </button>
-              <label className="py-1 px-2 bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800 text-[11px] font-medium rounded-lg transition cursor-pointer flex items-center justify-center gap-1 hover:text-white">
-                <span>📂</span> Load Preset
-                <input type="file" hidden accept=".json" onChange={handleLoadTemplatePreset} />
-              </label>
             </div>
-          </div>
-        </aside>
+          )}
 
-        {/* CENTER STAGE: Canvas Viewport */}
+          {/* 3. TEXT */}
+          {activeTab === "text" && (
+            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+              <div>
+                <h3 className="text-sm font-bold text-white tracking-tight">Typography</h3>
+                <p className="text-xs text-slate-400">Add text elements to your canvas</p>
+              </div>
+
+              <div className="flex flex-col gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => { if (typeof addTagToCanvas === "function") addTagToCanvas("Heading"); }}
+                  className="w-full py-3 px-4 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-800 text-left transition cursor-pointer flex items-center justify-between"
+                >
+                  <span className="text-lg font-extrabold text-white">Add a Heading</span>
+                  <span className="text-xs text-slate-500 font-mono">32pt</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { if (typeof addTagToCanvas === "function") addTagToCanvas("Subheading"); }}
+                  className="w-full py-2.5 px-4 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-800 text-left transition cursor-pointer flex items-center justify-between"
+                >
+                  <span className="text-sm font-bold text-slate-200">Add a Subheading</span>
+                  <span className="text-xs text-slate-500 font-mono">20pt</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { if (typeof addTagToCanvas === "function") addTagToCanvas("Body Text"); }}
+                  className="w-full py-2 px-4 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-800 text-left transition cursor-pointer flex items-center justify-between"
+                >
+                  <span className="text-xs font-normal text-slate-400">Add body text</span>
+                  <span className="text-xs text-slate-500 font-mono">14pt</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* 4. UPLOADS */}
+          {activeTab === "uploads" && (
+            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+              <div>
+                <h3 className="text-sm font-bold text-white tracking-tight">Uploads</h3>
+                <p className="text-xs text-slate-400">Manage template backgrounds and assets</p>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Template Background</span>
+                <label className="border border-dashed border-slate-700 hover:border-cyan-400 bg-slate-950/60 p-4 rounded-xl flex flex-col items-center justify-center cursor-pointer transition">
+                  <span className="text-2xl mb-1">🖼️</span>
+                  <span className="text-xs font-semibold text-slate-200">Upload PDF or Image</span>
+                  <span className="text-[10px] text-slate-500">PDF, PNG, JPG, WebP</span>
+                  <input
+                    type="file"
+                    id="template-upload-input"
+                    accept=".pdf,.png,.jpg,.jpeg,.webp"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (typeof handleTemplateUpload === "function") handleTemplateUpload(e);
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
+          )}
+
+          {/* 5. PRESETS */}
+          {activeTab === "presets" && (
+            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+              <div>
+                <h3 className="text-sm font-bold text-white tracking-tight">Presets & Tools</h3>
+                <p className="text-xs text-slate-400">Artboard dimensions and canvas settings</p>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Canvas Grid</span>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {["Off", "10px", "20px", "Dots"].map(g => (
+                    <button
+                      key={g}
+                      type="button"
+                      className="py-1.5 text-xs font-semibold rounded-lg border border-slate-800 bg-slate-950 hover:bg-slate-850 text-slate-300 transition text-center cursor-pointer"
+                    >
+                      {g}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 pt-2 border-t border-slate-800">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Alignment Guides</span>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <button type="button" className="py-1.5 text-xs font-semibold rounded-lg border border-slate-800 bg-slate-950 text-slate-300 hover:text-white cursor-pointer">+H</button>
+                  <button type="button" className="py-1.5 text-xs font-semibold rounded-lg border border-slate-800 bg-slate-950 text-slate-300 hover:text-white cursor-pointer">+V</button>
+                  <button type="button" className="py-1.5 text-xs font-semibold rounded-lg border border-slate-800 bg-slate-950 text-rose-400 hover:text-rose-300 cursor-pointer">Clear</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
         <main className="flex-1 flex flex-col min-w-0 bg-slate-950 overflow-hidden relative">
           <div className="shrink-0 min-h-[44px] py-1.5 border-b border-slate-800 bg-slate-900/60 px-3 flex flex-wrap items-center justify-between gap-3 select-none z-10">
             <div className="flex flex-wrap items-center gap-2">
@@ -3817,6 +3963,82 @@ export default function Home() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+          {/* ================================================================= */}
+      {/* BOTTOM DATA TABLE PANEL                                           */}
+      {/* ================================================================= */}
+      {typeof showDataTable !== "undefined" && (
+        <div className={"transition-all duration-300 ease-in-out border-t border-slate-800 bg-slate-950 flex flex-col z-30 shrink-0 " + (showDataTable ? "h-64 shadow-[0_-8px_30px_rgba(0,0,0,0.4)]" : "h-10")}>
+          <div 
+            className="h-10 px-4 flex items-center justify-between cursor-pointer hover:bg-slate-900/80 transition-colors shrink-0 select-none"
+            onClick={() => setShowDataTable(!showDataTable)}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-lg">📊</span>
+              <span className="text-sm font-bold text-slate-200">View Data Table</span>
+              {typeof csvData !== "undefined" && csvData.length > 0 && (
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                  {csvData.length} Rows
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-slate-400">
+                {showDataTable ? "Click to collapse" : "Click to expand"}
+              </span>
+              <span className={"text-xs text-slate-500 transition-transform duration-300 " + (showDataTable ? "rotate-180" : "")}>
+                ▼
+              </span>
+            </div>
+          </div>
+          
+          {showDataTable && typeof csvData !== "undefined" && typeof csvHeaders !== "undefined" && csvData.length > 0 && (
+            <div className="flex-1 overflow-auto bg-slate-900/50 p-4 border-t border-slate-800/50 relative">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead className="bg-slate-950/90 sticky -top-4 z-10 shadow-sm backdrop-blur-md">
+                  <tr>
+                    <th className="p-2.5 border-b border-slate-800 font-bold text-slate-500 w-12 text-center">#</th>
+                    {csvHeaders.map((h, idx) => {
+                      const colorPalette = [
+                        "text-cyan-400", "text-rose-400", "text-amber-400", 
+                        "text-emerald-400", "text-purple-400", "text-blue-400"
+                      ];
+                      const colorClass = colorPalette[idx % colorPalette.length];
+                      return (
+                        <th key={h} className={"p-2.5 border-b border-slate-800 font-bold whitespace-nowrap " + colorClass}>
+                          {h}
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody>
+                  {csvData.slice(0, 100).map((row, i) => (
+                    <tr key={i} className={"border-b border-slate-800/50 hover:bg-slate-800/60 transition-colors " + (typeof currentPageIndex !== "undefined" && currentPageIndex === i ? "bg-cyan-950/30" : "")}>
+                      <td className="p-2 text-slate-500 font-mono text-center">{i + 1}</td>
+                      {csvHeaders.map(h => (
+                        <td key={h} className="p-2 text-slate-300 truncate max-w-[200px]" title={row[h]}>
+                          {row[h]}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {csvData.length > 100 && (
+                <div className="p-3 text-center text-xs text-slate-500 italic">
+                  Showing first 100 rows...
+                </div>
+              )}
+            </div>
+          )}
+          {showDataTable && (!csvData || csvData.length === 0) && (
+            <div className="flex-1 flex flex-col items-center justify-center text-slate-500 text-xs gap-2">
+              <span className="text-2xl">📄</span>
+              <span>No CSV data loaded. Drop a file in the Uploads tab to view data here.</span>
+            </div>
+          )}
         </div>
       )}
     </div>
